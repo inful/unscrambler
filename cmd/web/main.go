@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -30,8 +32,12 @@ func main() {
 	homeHandler.RegisterRoutes(r)
 	gameHandler.RegisterRoutes(r)
 
-	log.Println("listening on http://localhost:9080")
-	if err := http.ListenAndServe(":9080", r); err != nil {
+	addr := ":" + strings.TrimSpace(os.Getenv("PORT"))
+	if addr == ":" {
+		addr = ":8080"
+	}
+	log.Printf("listening on http://localhost%s", addr)
+	if err := http.ListenAndServe(addr, r); err != nil {
 		log.Fatal(err)
 	}
 }
