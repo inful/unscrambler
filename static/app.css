@@ -1,0 +1,52 @@
+.invite-url {
+	font-family: "SFMono-Regular", ui-monospace, "Cascadia Code", monospace;
+	word-break: break-all;
+}
+
+.letter-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.letter {
+	padding: 0.75rem 1rem;
+	background: #f5f5f5;
+	border: 1px solid #dbdbdb;
+	border-radius: 8px;
+	font-size: 1.5rem;
+	cursor: pointer;
+	user-select: none;
+	transition: transform 120ms ease, box-shadow 120ms ease;
+	will-change: transform;
+}
+
+.letter.is-selected {
+	box-shadow: 0 8px 16px rgba(10, 10, 10, 0.15);
+	transform: scale(1.05);
+	border-color: #3273dc;
+}
+
+.letter.is-solved {
+	background: #f0f0f0;
+	border-color: #b5b5b5;
+	color: #7a7a7a;
+}
+
+.letter.is-correct {
+	background: #e0f8e6;
+	border-color: #48c774;
+	color: #257942;
+}
+
+[data-round] .word-correct {
+	color: #257942;
+	font-weight: 600;
+}
+
+[data-round].is-expired .letter {
+	opacity: 0.7;
+}

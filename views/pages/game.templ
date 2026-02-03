@@ -1,0 +1,114 @@
+package pages
+
+import (
+	"strconv"
+
+	"dagame/internal/viewmodel"
+	"dagame/views/components"
+)
+
+templ GamePage(data viewmodel.GamePage) {
+	<!doctype html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Unscrambler - Game</title>
+			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<script src="https://unpkg.com/htmx.org@1.9.2"></script>
+			<script defer src="/static/app.js"></script>
+		</head>
+		<body>
+			<section class="section">
+				<div class="container">
+					<div id="game-root" data-stream-url={"/game/" + data.GameID + "/stream"} class="columns">
+						<div class="column is-two-thirds">
+							<h1 class="title">
+								<a href="/" class="has-text-dark">Unscrambler</a>
+							</h1>
+							<p class="subtitle">Invite others with this URL:</p>
+							<div class="notification is-light invite-url">
+								<div class="field has-addons">
+									<div class="control is-expanded">
+										<input class="input" type="text" value={data.InviteURL} readonly/>
+									</div>
+									<div class="control">
+										<button class="button is-info" type="button" data-copy-url={data.InviteURL}>Copy</button>
+									</div>
+								</div>
+							</div>
+
+							if !data.HasPlayer {
+								<div class="card">
+									<div class="card-content">
+										<h2 class="title is-5">Join the game</h2>
+										<form method="post" action={templ.URL("/game/" + data.GameID + "/join")}>
+											<div class="field">
+												<label class="label" for="username">Username</label>
+												<div class="control">
+													<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required/>
+												</div>
+											</div>
+											<div class="field">
+												<div class="control">
+													<button class="button is-primary" type="submit">Join game</button>
+												</div>
+											</div>
+										</form>
+									</div>
+								</div>
+							} else {
+								<div class="box">
+									<p>Playing as <strong>{data.PlayerName}</strong></p>
+								</div>
+							}
+
+							if data.HasPlayer {
+								<div id="round-area">
+									@components.RoundFragment(viewmodel.RoundFragment{
+										GameID: data.GameID,
+										Status: data.Status,
+										CurrentRound: data.CurrentRound,
+										TotalRounds: data.TotalRounds,
+										RoundStartedMs: data.RoundStartedMs,
+										DurationSec: data.RoundDuration,
+										Scrambled: data.Scrambled,
+										TargetWord: data.TargetWord,
+									})
+								</div>
+							}
+						</div>
+						<div class="column">
+						<div id="players-area">
+							@components.PlayersFragment(viewmodel.PlayersFragment{
+								Players: data.Players,
+								WordLength: data.WordLength,
+								PlayerName: data.PlayerName,
+							})
+						</div>
+							if data.ShowStart {
+								<form class="mt-4" method="post" action={templ.URL("/game/" + data.GameID + "/start")}>
+									<button class="button is-link is-fullwidth" type="submit">Start game</button>
+								</form>
+							}
+							<div class="content mt-4">
+								<p><strong>Rounds:</strong> {strconv.Itoa(data.Rounds)}</p>
+								<p><strong>Seconds per round:</strong> {strconv.Itoa(data.RoundDuration)}</p>
+							</div>
+						</div>
+						<div id="scores-area">
+							@components.ScoresFragment(viewmodel.ScoresFragment{
+								GameID: data.GameID,
+								Scores: data.Scores,
+								WinnerName: data.WinnerName,
+								Status: data.Status,
+								IsOwner: data.IsOwner,
+							})
+						</div>
+					</div>
+				</div>
+			</section>
+		</body>
+	</html>
+}

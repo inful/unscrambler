@@ -1,0 +1,30 @@
+package components
+
+import (
+	"strconv"
+
+	"dagame/internal/viewmodel"
+)
+
+templ PlayersFragment(data viewmodel.PlayersFragment) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-5">Players</h2>
+			if len(data.Players) == 0 {
+				<p class="has-text-grey">No other players yet.</p>
+			}
+			if len(data.Players) > 0 {
+				<ul>
+					for _, player := range data.Players {
+						<li>
+							{player.Name}
+							if data.WordLength > 0 {
+								<span class="tag is-light ml-2">{strconv.Itoa(player.Correct)}/{strconv.Itoa(data.WordLength)}</span>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
