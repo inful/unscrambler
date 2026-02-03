@@ -15,7 +15,7 @@ templ GamePage(data viewmodel.GamePage) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Unscrambler - Game</title>
 			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			<link rel="stylesheet" href="/static/app.css?v=playful1"/>
 			<script src="https://unpkg.com/htmx.org@1.9.2"></script>
 			<script defer src="/static/app.js"></script>
 		</head>
@@ -24,7 +24,7 @@ templ GamePage(data viewmodel.GamePage) {
 				<div class="container">
 					<div id="game-root" data-stream-url={"/game/" + data.GameID + "/stream"} class="columns">
 						<div class="column is-two-thirds">
-							<h1 class="title">
+							<h1 class="title is-2">
 								<a href="/" class="has-text-dark">Unscrambler</a>
 							</h1>
 							<p class="subtitle">Invite others with this URL:</p>

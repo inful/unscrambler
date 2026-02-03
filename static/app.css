@@ -1,6 +1,20 @@
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap");
+
+body {
+	background: radial-gradient(circle at top left, #fff4d6 0%, #f8f3ff 35%, #e8f7ff 100%);
+	font-family: "Fredoka", "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif;
+}
+
+h1.title,
+h2.title,
+.subtitle {
+	letter-spacing: 0.4px;
+}
+
 .invite-url {
 	font-family: "SFMono-Regular", ui-monospace, "Cascadia Code", monospace;
 	word-break: break-all;
+	border: 1px solid #e6e6f0;
 }
 
 .letter-list {
@@ -14,32 +28,32 @@
 
 .letter {
 	padding: 0.75rem 1rem;
-	background: #f5f5f5;
-	border: 1px solid #dbdbdb;
-	border-radius: 8px;
+	background: #ffffff;
+	border: 2px solid #e8e0ff;
+	border-radius: 14px;
 	font-size: 1.5rem;
 	cursor: pointer;
 	user-select: none;
-	transition: transform 120ms ease, box-shadow 120ms ease;
+	transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
 	will-change: transform;
 }
 
 .letter.is-selected {
-	box-shadow: 0 8px 16px rgba(10, 10, 10, 0.15);
-	transform: scale(1.05);
-	border-color: #3273dc;
+	box-shadow: 0 12px 20px rgba(76, 90, 204, 0.25);
+	transform: scale(1.08) rotate(-2deg);
+	border-color: #6c63ff;
 }
 
 .letter.is-solved {
-	background: #f0f0f0;
-	border-color: #b5b5b5;
-	color: #7a7a7a;
+	background: #f2f2f2;
+	border-color: #cfcfe9;
+	color: #8a8aa6;
 }
 
 .letter.is-correct {
-	background: #e0f8e6;
-	border-color: #48c774;
-	color: #257942;
+	background: #ddf6e8;
+	border-color: #6bd68b;
+	color: #1e7a45;
 }
 
 [data-round] .word-correct {
@@ -49,4 +63,30 @@
 
 [data-round].is-expired .letter {
 	opacity: 0.7;
+}
+
+.card {
+	box-shadow: 0 16px 32px rgba(76, 90, 204, 0.12);
+	border: 2px solid #f1ecff;
+	border-radius: 16px;
+}
+
+.button.is-primary,
+.button.is-info,
+.button.is-link {
+	box-shadow: 0 8px 18px rgba(108, 99, 255, 0.3);
+	border-radius: 999px;
+}
+
+.title a.has-text-dark {
+	text-decoration: none;
+}
+
+.title a.has-text-dark:hover {
+	text-decoration: underline;
+}
+
+.notification.is-light {
+	background: rgba(255, 255, 255, 0.95);
+	border: 2px dashed #f0d9ff;
 }

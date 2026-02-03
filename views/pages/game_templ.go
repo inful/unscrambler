@@ -36,7 +36,7 @@ func GamePage(data viewmodel.GamePage) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Unscrambler - Game</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"https://unpkg.com/htmx.org@1.9.2\"></script><script defer src=\"/static/app.js\"></script></head><body><section class=\"section\"><div class=\"container\"><div id=\"game-root\" data-stream-url=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Unscrambler - Game</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css?v=playful1\"><script src=\"https://unpkg.com/htmx.org@1.9.2\"></script><script defer src=\"/static/app.js\"></script></head><body><section class=\"section\"><div class=\"container\"><div id=\"game-root\" data-stream-url=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -49,7 +49,7 @@ func GamePage(data viewmodel.GamePage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"columns\"><div class=\"column is-two-thirds\"><h1 class=\"title\"><a href=\"/\" class=\"has-text-dark\">Unscrambler</a></h1><p class=\"subtitle\">Invite others with this URL:</p><div class=\"notification is-light invite-url\"><div class=\"field has-addons\"><div class=\"control is-expanded\"><input class=\"input\" type=\"text\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"columns\"><div class=\"column is-two-thirds\"><h1 class=\"title is-2\"><a href=\"/\" class=\"has-text-dark\">Unscrambler</a></h1><p class=\"subtitle\">Invite others with this URL:</p><div class=\"notification is-light invite-url\"><div class=\"field has-addons\"><div class=\"control is-expanded\"><input class=\"input\" type=\"text\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
