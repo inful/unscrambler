@@ -1,5 +1,6 @@
 package viewmodel
 
+// GamePage holds data for the main game page template.
 type GamePage struct {
 	Title          string
 	GameID         string
@@ -22,6 +23,7 @@ type GamePage struct {
 	WordLength     int
 }
 
+// RoundFragment holds data for the round UI fragment.
 type RoundFragment struct {
 	GameID         string
 	Status         string
@@ -39,11 +41,13 @@ type RoundFragment struct {
 	RoundKey       string
 }
 
+// ScoreEntry holds a player's score for rendering.
 type ScoreEntry struct {
 	Name   string
 	Points int
 }
 
+// ScoresFragment holds data for the scores panel.
 type ScoresFragment struct {
 	GameID     string
 	Scores     []ScoreEntry
@@ -52,11 +56,13 @@ type ScoresFragment struct {
 	IsOwner    bool
 }
 
+// PlayerProgress holds a player's correct-letter progress.
 type PlayerProgress struct {
 	Name    string
 	Correct int
 }
 
+// PlayersFragment holds data for the players panel.
 type PlayersFragment struct {
 	Players    []PlayerProgress
 	WordLength int

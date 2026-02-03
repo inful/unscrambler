@@ -23,10 +23,12 @@ type GameHandler struct {
 	store *game.Store
 }
 
+// NewGameHandler builds the handler for game session routes.
 func NewGameHandler(store *game.Store) *GameHandler {
 	return &GameHandler{store: store}
 }
 
+// RegisterRoutes wires game session endpoints.
 func (h *GameHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/game/{id}", func(r chi.Router) {
 		r.Get("/", h.gamePage)
@@ -254,6 +256,7 @@ func (h *GameHandler) progressUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
+	// Server computes correct indices so the answer isn't exposed in HTML.
 	guess := r.FormValue("guess")
 	snapshot := instance.Snapshot(time.Now().UTC())
 	correctIndexes := correctIndexesForGuess(snapshot.RoundData.Word, guess)
@@ -277,6 +280,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// SSE stream with explicit event names for round/players/scores.
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -334,6 +338,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 				sendSnapshot(true, false, false)
 			}
 		case <-keepAlive.C:
+			// Comment frame keeps proxies from closing the stream.
 			_, _ = w.Write([]byte(": keepalive\n\n"))
 			flusher.Flush()
 		}

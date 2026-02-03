@@ -15,10 +15,12 @@ type HomeHandler struct {
 	store *game.Store
 }
 
+// NewHomeHandler builds the handler for the landing page and game creation.
 func NewHomeHandler(store *game.Store) *HomeHandler {
 	return &HomeHandler{store: store}
 }
 
+// RegisterRoutes wires the home endpoints.
 func (h *HomeHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/", h.home)
 	r.Post("/games", h.createGame)

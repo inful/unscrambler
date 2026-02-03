@@ -25,6 +25,7 @@ type Store struct {
 	wakes map[string]chan struct{}
 }
 
+// NewStore creates an in-memory game store with SSE broadcasters.
 func NewStore() *Store {
 	return &Store{
 		games: make(map[string]*Game),
@@ -34,6 +35,7 @@ func NewStore() *Store {
 	}
 }
 
+// CreateGame initializes a game and registers its broadcaster.
 func (s *Store) CreateGame(rounds int, duration time.Duration) *Game {
 	game := NewGame(rounds, duration)
 	s.mu.Lock()
@@ -43,6 +45,7 @@ func (s *Store) CreateGame(rounds int, duration time.Duration) *Game {
 	return game
 }
 
+// GetGame returns a game by ID if it exists.
 func (s *Store) GetGame(id string) (*Game, bool) {
 	s.mu.RLock()
 	game, ok := s.games[id]
@@ -50,6 +53,7 @@ func (s *Store) GetGame(id string) (*Game, bool) {
 	return game, ok
 }
 
+// Broadcaster returns the SSE broadcaster for a game, creating it if missing.
 func (s *Store) Broadcaster(id string) *Broadcaster {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -61,11 +65,13 @@ func (s *Store) Broadcaster(id string) *Broadcaster {
 	return hub
 }
 
+// Publish notifies subscribers of a game update with a typed event.
 func (s *Store) Publish(id string, event string) {
 	hub := s.Broadcaster(id)
 	hub.Publish(event)
 }
 
+// EnsureRoundLoop starts the timing loop for a game if not already running.
 func (s *Store) EnsureRoundLoop(id string, game *Game) {
 	s.mu.Lock()
 	if _, ok := s.loops[id]; ok {
@@ -87,6 +93,7 @@ func (s *Store) EnsureRoundLoop(id string, game *Game) {
 		}()
 
 		for {
+			// NextTimer drives round end and the 5s cooldown before next round.
 			next, ok := game.NextTimer(time.Now().UTC())
 			if !ok {
 				return
@@ -107,6 +114,7 @@ func (s *Store) EnsureRoundLoop(id string, game *Game) {
 					s.Publish(id, "players")
 				}
 			case <-wake:
+				// Wake forces recompute after a correct guess ends the round early.
 				if !timer.Stop() {
 					select {
 					case <-timer.C:
@@ -145,6 +153,7 @@ func NewGame(rounds int, duration time.Duration) *Game {
 	}
 }
 
+// Game holds the state for a single session.
 type Game struct {
 	mu            sync.Mutex
 	ID            string
@@ -162,11 +171,13 @@ type Game struct {
 	Players       map[string]*Player
 }
 
+// Round describes a single word and its scrambled version.
 type Round struct {
 	Word      string
 	Scrambled string
 }
 
+// Player tracks per-session state for a participant.
 type Player struct {
 	ID       string
 	Username string
@@ -175,6 +186,7 @@ type Player struct {
 	Progress int
 }
 
+// AddPlayer registers a player and assigns ownership if unset.
 func (g *Game) AddPlayer(username string) *Player {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -190,6 +202,7 @@ func (g *Game) AddPlayer(username string) *Player {
 	return player
 }
 
+// Start begins round one if the game is in the lobby.
 func (g *Game) Start(now time.Time) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -208,6 +221,7 @@ func (g *Game) Start(now time.Time) error {
 	return nil
 }
 
+// Restart resets rounds and scores while keeping the same session ID.
 func (g *Game) Restart(now time.Time) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -224,6 +238,7 @@ func (g *Game) Restart(now time.Time) {
 	}
 }
 
+// AdvanceIfNeeded moves the game to the next round if timing conditions are met.
 func (g *Game) AdvanceIfNeeded(now time.Time) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -262,6 +277,7 @@ func (g *Game) advanceIfNeededLocked(now time.Time) bool {
 	return changed
 }
 
+// CurrentRoundData returns the word data for the current round.
 func (g *Game) CurrentRoundData() Round {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -275,6 +291,7 @@ func (g *Game) currentRoundDataLocked() Round {
 	return g.RoundData[g.CurrentRound-1]
 }
 
+// SubmitGuess validates a guess, awards points, and ends the round on success.
 func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -320,6 +337,7 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 	return true, nil
 }
 
+// NextTimer returns the next time the round state should advance.
 func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -336,6 +354,7 @@ func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 	return next, true
 }
 
+// UpdateProgress stores a player's correct letter count for the current round.
 func (g *Game) UpdateProgress(playerID string, correct int, now time.Time) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -363,6 +382,7 @@ func (g *Game) UpdateProgress(playerID string, correct int, now time.Time) {
 	player.Progress = correct
 }
 
+// PlayerName resolves a player's display name by ID.
 func (g *Game) PlayerName(playerID string) (string, bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -373,12 +393,14 @@ func (g *Game) PlayerName(playerID string) (string, bool) {
 	return player.Username, true
 }
 
+// IsOwner reports whether the given player ID owns the session.
 func (g *Game) IsOwner(playerID string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return playerID != "" && playerID == g.OwnerID
 }
 
+// PlayerNames returns a snapshot of all player names.
 func (g *Game) PlayerNames() []string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -389,6 +411,7 @@ func (g *Game) PlayerNames() []string {
 	return players
 }
 
+// Snapshot captures the state needed for rendering UI fragments.
 type Snapshot struct {
 	ID            string
 	Status        string
@@ -407,6 +430,7 @@ type Snapshot struct {
 	WinnerName    string
 }
 
+// Snapshot returns a consistent view of the current game state.
 func (g *Game) Snapshot(now time.Time) Snapshot {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -464,11 +488,13 @@ func (g *Game) Snapshot(now time.Time) Snapshot {
 	}
 }
 
+// ScoreEntry represents a player's total points.
 type ScoreEntry struct {
 	Name   string
 	Points int
 }
 
+// PlayerProgress represents a player's correct letter count.
 type PlayerProgress struct {
 	Name    string
 	Correct int

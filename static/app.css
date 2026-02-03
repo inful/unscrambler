@@ -1,8 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap");
 
+html,
 body {
 	background: radial-gradient(circle at top left, #fff4d6 0%, #f8f3ff 35%, #e8f7ff 100%);
 	font-family: "Fredoka", "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif;
+	min-height: 100%;
+	background-attachment: fixed;
 }
 
 h1.title,
