@@ -1,6 +1,8 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"log"
 	"mime"
 	"net/http"
@@ -28,7 +30,12 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(15 * time.Second))
 
-	r.Mount("/static", http.StripPrefix("/static", http.FileServer(http.Dir("./static"))))
+	staticFS, err := fs.Sub(embeddedStatic, "static")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r.Mount("/static", http.StripPrefix("/static", http.FileServer(http.FS(staticFS))))
 
 	homeHandler := handlers.NewHomeHandler(store)
 	gameHandler := handlers.NewGameHandler(store)
@@ -54,3 +61,6 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+//go:embed static/*
+var embeddedStatic embed.FS

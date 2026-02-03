@@ -1,11 +1,11 @@
 FROM gcr.io/distroless/static:nonroot
 
-WORKDIR /
+WORKDIR /app
 
-COPY unscrambler /usr/local/bin/unscrambler
+COPY unscrambler /app/unscrambler
 
 EXPOSE 8080
 
 USER nonroot:nonroot
 
-ENTRYPOINT ["/usr/local/bin/unscrambler"]
+ENTRYPOINT ["/app/unscrambler"]
