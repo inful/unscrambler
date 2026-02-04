@@ -255,7 +255,7 @@ func RoundFragment(data viewmodel.RoundFragment) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" hx-target=\"#round-area\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"guess\" data-guess-input> <button class=\"button is-primary\" type=\"submit\">Submit answer</button></form><p class=\"help mt-3\">Click two letters to swap them, then submit.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" hx-target=\"#round-area\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"guess\" data-guess-input> <button class=\"button is-primary\" type=\"submit\">Submit answer</button></form><p class=\"help mt-3\">Click two letters to swap them. Click submit when you have unscrambled the word.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
