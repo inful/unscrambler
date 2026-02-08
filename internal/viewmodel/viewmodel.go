@@ -1,5 +1,11 @@
 package viewmodel
 
+// LanguageOption is a language choice for the create-game form.
+type LanguageOption struct {
+	Code  string
+	Label string
+}
+
 // GamePage holds data for the main game page template.
 type GamePage struct {
 	Title          string

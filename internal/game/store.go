@@ -36,8 +36,8 @@ func NewStore() *Store {
 }
 
 // CreateGame initializes a game and registers its broadcaster.
-func (s *Store) CreateGame(rounds int, duration time.Duration) *Game {
-	game := NewGame(rounds, duration)
+func (s *Store) CreateGame(rounds int, duration time.Duration, lang string) *Game {
+	game := NewGame(rounds, duration, lang)
 	s.mu.Lock()
 	s.games[game.ID] = game
 	s.hubs[game.ID] = NewBroadcaster()
@@ -140,8 +140,11 @@ func (s *Store) WakeRoundLoop(id string) {
 	}
 }
 
-func NewGame(rounds int, duration time.Duration) *Game {
-	roundData := BuildRounds(rounds)
+func NewGame(rounds int, duration time.Duration, lang string) *Game {
+	if lang == "" {
+		lang = "en"
+	}
+	roundData := BuildRounds(lang, rounds)
 	return &Game{
 		ID:            newID(),
 		CreatedAt:     time.Now().UTC(),
@@ -149,6 +152,7 @@ func NewGame(rounds int, duration time.Duration) *Game {
 		RoundDuration: duration,
 		RoundData:     roundData,
 		Status:        StatusLobby,
+		Lang:          lang,
 		Players:       make(map[string]*Player),
 	}
 }
@@ -162,6 +166,7 @@ type Game struct {
 	RoundDuration time.Duration
 	RoundData     []Round
 	Status        string
+	Lang          string
 	CurrentRound  int
 	RoundStarted  time.Time
 	RoundWinnerID string
@@ -225,7 +230,7 @@ func (g *Game) Start(now time.Time) error {
 func (g *Game) Restart(now time.Time) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.RoundData = BuildRounds(g.Rounds)
+	g.RoundData = BuildRounds(g.Lang, g.Rounds)
 	g.Status = StatusInProgress
 	g.CurrentRound = 1
 	g.RoundStarted = now

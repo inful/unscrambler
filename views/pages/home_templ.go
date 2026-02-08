@@ -8,7 +8,9 @@ package pages
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func HomePage() templ.Component {
+import "dagame/internal/viewmodel"
+
+func HomePage(languages []viewmodel.LanguageOption) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -29,7 +31,76 @@ func HomePage() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Unscrambler - Create Game</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css?v=playful1\"><script src=\"https://unpkg.com/htmx.org@1.9.2\"></script><script defer src=\"/static/app.js\"></script></head><body><section class=\"section\"><div class=\"container\"><div class=\"columns is-centered\"><div class=\"column is-half\"><h1 class=\"title is-2\">Unscrambler</h1><p class=\"subtitle\">Create a new game</p><div class=\"card\"><div class=\"card-content\"><form method=\"post\" action=\"/games\"><div class=\"field\"><label class=\"label\" for=\"rounds\">Rounds</label><div class=\"control\"><input class=\"input\" type=\"number\" id=\"rounds\" name=\"rounds\" min=\"1\" max=\"10\" value=\"5\" required></div><p class=\"help\">Choose how many rounds this game should have.</p></div><div class=\"field\"><label class=\"label\" for=\"duration\">Seconds per round</label><div class=\"control\"><input class=\"input\" type=\"number\" id=\"duration\" name=\"duration\" min=\"10\" max=\"300\" value=\"60\" required></div><p class=\"help\">Each round will run for this many seconds.</p></div><div class=\"field\"><div class=\"control\"><button class=\"button is-primary\" type=\"submit\">Create game</button></div></div></form></div></div></div></div></div></section></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Unscrambler - Create Game</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css?v=playful1\"><script src=\"https://unpkg.com/htmx.org@1.9.2\"></script><script defer src=\"/static/app.js\"></script></head><body><section class=\"section\"><div class=\"container\"><div class=\"columns is-centered\"><div class=\"column is-half\"><h1 class=\"title is-2\">Unscrambler</h1><p class=\"subtitle\">Create a new game</p><div class=\"card\"><div class=\"card-content\"><form method=\"post\" action=\"/games\"><div class=\"field\"><label class=\"label\" for=\"lang\">Language</label><div class=\"control\"><div class=\"select is-fullwidth\"><select id=\"lang\" name=\"lang\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, l := range languages {
+			if l.Code == "en" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<option value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var2 string
+				templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(l.Code)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 34, Col: 37}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" selected>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(l.Label)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 34, Col: 56}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</option>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<option value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var4 string
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(l.Code)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 36, Col: 37}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var5 string
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(l.Label)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 36, Col: 47}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</option>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</select></div></div></div><div class=\"field\"><label class=\"label\" for=\"rounds\">Rounds</label><div class=\"control\"><input class=\"input\" type=\"number\" id=\"rounds\" name=\"rounds\" min=\"1\" max=\"10\" value=\"5\" required></div><p class=\"help\">Choose how many rounds this game should have.</p></div><div class=\"field\"><label class=\"label\" for=\"duration\">Seconds per round</label><div class=\"control\"><input class=\"input\" type=\"number\" id=\"duration\" name=\"duration\" min=\"10\" max=\"300\" value=\"60\" required></div><p class=\"help\">Each round will run for this many seconds.</p></div><div class=\"field\"><div class=\"control\"><button class=\"button is-primary\" type=\"submit\">Create game</button></div></div></form></div></div></div></div></div></section></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

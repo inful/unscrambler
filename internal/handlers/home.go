@@ -3,11 +3,13 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"dagame/internal/game"
+	"dagame/internal/viewmodel"
 	"dagame/views/pages"
 )
 
@@ -26,8 +28,22 @@ func (h *HomeHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/games", h.createGame)
 }
 
+var langLabels = map[string]string{
+	"en": "English",
+	"no": "Norwegian",
+}
+
 func (h *HomeHandler) home(w http.ResponseWriter, r *http.Request) {
-	render(w, r, pages.HomePage())
+	langs := game.SupportedLanguages()
+	opts := make([]viewmodel.LanguageOption, 0, len(langs))
+	for _, code := range langs {
+		label := code
+		if l, ok := langLabels[code]; ok {
+			label = l
+		}
+		opts = append(opts, viewmodel.LanguageOption{Code: code, Label: label})
+	}
+	render(w, r, pages.HomePage(opts))
 }
 
 func (h *HomeHandler) createGame(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +53,10 @@ func (h *HomeHandler) createGame(w http.ResponseWriter, r *http.Request) {
 	}
 	rounds := parseInt(r.FormValue("rounds"), 5)
 	durationSec := parseInt(r.FormValue("duration"), 60)
+	lang := strings.TrimSpace(r.FormValue("lang"))
+	if lang == "" {
+		lang = "en"
+	}
 	if rounds < 1 {
 		rounds = 1
 	}
@@ -50,7 +70,7 @@ func (h *HomeHandler) createGame(w http.ResponseWriter, r *http.Request) {
 		durationSec = 300
 	}
 
-	gameInstance := h.store.CreateGame(rounds, time.Duration(durationSec)*time.Second)
+	gameInstance := h.store.CreateGame(rounds, time.Duration(durationSec)*time.Second, lang)
 	http.Redirect(w, r, "/game/"+gameInstance.ID, http.StatusSeeOther)
 }
 

@@ -1,6 +1,8 @@
 package pages
 
-templ HomePage() {
+import "dagame/internal/viewmodel"
+
+templ HomePage(languages []viewmodel.LanguageOption) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -22,6 +24,22 @@ templ HomePage() {
 							<div class="card">
 								<div class="card-content">
 									<form method="post" action="/games">
+										<div class="field">
+											<label class="label" for="lang">Language</label>
+											<div class="control">
+												<div class="select is-fullwidth">
+													<select id="lang" name="lang">
+														for _, l := range languages {
+															if l.Code == "en" {
+																<option value={l.Code} selected>{l.Label}</option>
+															} else {
+																<option value={l.Code}>{l.Label}</option>
+															}
+														}
+													</select>
+												</div>
+											</div>
+										</div>
 										<div class="field">
 											<label class="label" for="rounds">Rounds</label>
 											<div class="control">
