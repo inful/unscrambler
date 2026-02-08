@@ -58,10 +58,6 @@ templ GamePage(data viewmodel.GamePage) {
 										</form>
 									</div>
 								</div>
-							} else {
-								<div class="box">
-									<p>Playing as <strong>{data.PlayerName}</strong></p>
-								</div>
 							}
 
 							if data.HasPlayer {
@@ -104,6 +100,7 @@ templ GamePage(data viewmodel.GamePage) {
 								WinnerName: data.WinnerName,
 								Status: data.Status,
 								IsOwner: data.IsOwner,
+								PlayerName: data.PlayerName,
 							})
 						</div>
 					</div>

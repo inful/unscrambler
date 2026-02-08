@@ -16,7 +16,11 @@ templ ScoresFragment(data viewmodel.ScoresFragment) {
 			if len(data.Scores) > 0 {
 				<ul>
 					for _, entry := range data.Scores {
-						<li>{entry.Name}: {strconv.Itoa(entry.Points)}</li>
+						if entry.Name == data.PlayerName {
+							<li><strong>{entry.Name}</strong>: {strconv.Itoa(entry.Points)}</li>
+						} else {
+							<li>{entry.Name}: {strconv.Itoa(entry.Points)}</li>
+						}
 					}
 				</ul>
 			}

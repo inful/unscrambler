@@ -174,6 +174,7 @@ func (h *GameHandler) scoresFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	playerName, _ := h.findPlayerName(r, instance)
 	snapshot := instance.Snapshot(time.Now().UTC())
 	data := viewmodel.ScoresFragment{
 		GameID:     gameID,
@@ -181,6 +182,7 @@ func (h *GameHandler) scoresFragment(w http.ResponseWriter, r *http.Request) {
 		WinnerName: snapshot.WinnerName,
 		Status:     snapshot.Status,
 		IsOwner:    instance.IsOwner(playerIDFromCookie(r, gameID)),
+		PlayerName: playerName,
 	}
 	render(w, r, components.ScoresFragment(data))
 }
@@ -313,6 +315,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 				WinnerName: snapshot.WinnerName,
 				Status:     snapshot.Status,
 				IsOwner:    instance.IsOwner(playerID),
+				PlayerName: playerName,
 			}))
 			writeSSE(w, "scores", scoresHTML)
 		}

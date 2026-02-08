@@ -60,6 +60,7 @@ type ScoresFragment struct {
 	WinnerName string
 	Status     string
 	IsOwner    bool
+	PlayerName string // current player, shown in bold in the list
 }
 
 // PlayerProgress holds a player's correct-letter progress.
