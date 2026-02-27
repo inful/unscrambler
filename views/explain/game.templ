@@ -75,9 +75,6 @@ templ GamePage(data viewmodel.GamePageData) {
 								<div id="lobby-actions" class="mb-4">
 									@LobbyFragment(data.Snap, data.GameID)
 								</div>
-								<div id="round" class="mb-4">
-									@RoundFragment(data.Snap)
-								</div>
 								<div id="canvas" class="mb-4">
 									@CanvasFragment(data.Snap)
 								</div>
@@ -87,6 +84,12 @@ templ GamePage(data viewmodel.GamePageData) {
 							</div>
 							// ── Sidebar ─────────────────────────────────────────────────────
 							<div class="column">
+								<div id="scores" class="mb-4">
+									@ScoresFragment(data.Snap)
+								</div>
+								<div id="round" class="mb-4">
+									@RoundFragment(data.Snap)
+								</div>
 								if data.Snap.Status == "lobby" {
 									<div class="card mb-4">
 										<div class="card-content">
@@ -104,9 +107,6 @@ templ GamePage(data viewmodel.GamePageData) {
 								}
 								<div id="players" class="mb-4">
 									@PlayersFragment(data.Snap, data.PlayerID)
-								</div>
-								<div id="scores">
-									@ScoresFragment(data.Snap)
 								</div>
 							</div>
 						</div>
