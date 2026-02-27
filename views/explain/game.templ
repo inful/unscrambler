@@ -1,6 +1,10 @@
 package explainviews
 
-import "dagame/internal/explain/viewmodel"
+import (
+	"strconv"
+
+	"dagame/internal/explain/viewmodel"
+)
 
 templ GamePage(data viewmodel.GamePageData) {
 	<!DOCTYPE html>
@@ -10,57 +14,91 @@ templ GamePage(data viewmodel.GamePageData) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Explain</title>
 			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			@explainStyles()
 		</head>
 		<body>
 			<section class="section">
 				<div id="game-root" class="container" data-game-id={ data.GameID }>
-					<h1 class="title is-2">Explain</h1>
+					<h1 class="title is-2">
+						<a href="/" class="has-text-dark" style="text-decoration:none;">Explain 🤔</a>
+					</h1>
 					if !data.HasPlayer {
-						<div class="card">
-							<div class="card-content">
-								<h2 class="title is-5">Join the game</h2>
-								<form method="POST" action={ templ.URL("/game/" + data.GameID + "/join") }>
-									<div class="field">
-										<label class="label" for="username">Your name</label>
-										<div class="control">
-											<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required/>
-										</div>
+						<div class="columns is-centered">
+							<div class="column is-half">
+								<div class="card">
+									<div class="card-content">
+										<h2 class="title is-5">Join the game</h2>
+										<form method="POST" action={ templ.URL("/game/" + data.GameID + "/join") }>
+											<div class="field">
+												<label class="label" for="username">Your name</label>
+												<div class="control">
+													<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required autofocus/>
+												</div>
+											</div>
+											<div class="field">
+												<div class="control">
+													<button type="submit" class="button is-primary">Join game</button>
+												</div>
+											</div>
+										</form>
+										<p class="help mt-3">Invite a friend: { data.InviteURL }</p>
 									</div>
-									<div class="field">
-										<div class="control">
-											<button type="submit" class="button is-primary">Join</button>
-										</div>
-									</div>
-								</form>
-								<p class="help mt-3">Invite link: { data.InviteURL }</p>
+								</div>
 							</div>
 						</div>
 					} else {
-						<p class="mb-2">Hello, <strong>{ data.PlayerName }</strong></p>
-						<div class="notification is-light mb-4">
+						// Invite URL bar
+						<div class="notification is-light invite-url mb-4">
 							<div class="field has-addons">
 								<div class="control is-expanded">
-									<input class="input is-small" type="text" value={ data.InviteURL } readonly/>
+									<input id="invite-input" class="input is-small" type="text" value={ data.InviteURL } readonly/>
+								</div>
+								<div class="control">
+									<button
+										id="copy-btn"
+										class="button is-info is-small"
+										type="button"
+										data-url={ data.InviteURL }
+										onclick="(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)"
+									>Copy</button>
 								</div>
 							</div>
 						</div>
 						<div class="columns">
+							// ── Main column ────────────────────────────────────────────────
 							<div class="column is-two-thirds">
-								<div id="lobby-actions">
+								<div id="lobby-actions" class="mb-4">
 									@LobbyFragment(data.Snap, data.GameID)
 								</div>
-								<div id="round">
+								<div id="round" class="mb-4">
 									@RoundFragment(data.Snap)
 								</div>
-								<div id="canvas">
+								<div id="canvas" class="mb-4">
 									@CanvasFragment(data.Snap)
 								</div>
 								<div id="wordhint">
 									@WordHintFragment(data.Snap, data.GameID)
 								</div>
 							</div>
+							// ── Sidebar ─────────────────────────────────────────────────────
 							<div class="column">
-								<div id="players">
+								if data.Snap.Status == "lobby" {
+									<div class="card mb-4">
+										<div class="card-content">
+											<h2 class="title is-6 mb-3">Game settings</h2>
+											<div class="settings-item">
+												<span class="has-text-grey">Rounds</span>
+												<strong>{ itoa(data.Snap.Rounds) }</strong>
+											</div>
+											<div class="settings-item">
+												<span class="has-text-grey">Seconds per round</span>
+												<strong>{ itoa(data.Snap.RoundDurationSec) }</strong>
+											</div>
+										</div>
+									</div>
+								}
+								<div id="players" class="mb-4">
 									@PlayersFragment(data.Snap, data.PlayerID)
 								</div>
 								<div id="scores">
@@ -177,4 +215,9 @@ document.addEventListener("mouseup",function(){
 			</section>
 		</body>
 	</html>
+}
+
+// itoa is a small helper for use in templ expressions.
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }

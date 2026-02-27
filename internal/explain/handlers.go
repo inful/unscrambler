@@ -106,7 +106,7 @@ func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request) {
 		HasPlayer:  hasPlayer,
 		PlayerName: playerName,
 		PlayerID:   playerID,
-		Snap:       snapToVM(snap, showStart, len(g.Players)),
+		Snap:       snapToVM(snap, showStart, len(g.Players), playerName),
 	}
 	renderPage(w, r.Context(), explainviews.GamePage(data))
 }
@@ -119,11 +119,11 @@ func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := getPlayerID(r, gameID)
-	_, hasPlayer := g.PlayerName(playerID)
+	playerName, hasPlayer := g.PlayerName(playerID)
 	isOwner := g.IsOwner(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	showStart := hasPlayer && isOwner && snap.Status == StatusLobby && len(g.Players) >= MinPlayers
-	vm := snapToVM(snap, showStart, len(g.Players))
+	vm := snapToVM(snap, showStart, len(g.Players), playerName)
 
 	renderFragment(w, r.Context(), explainviews.LobbyFragment(vm, gameID))
 }
@@ -201,6 +201,7 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := getPlayerID(r, gameID)
+	playerName, _ := g.PlayerName(playerID)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -214,7 +215,7 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 	sendAll := func() {
 		snap := g.Snapshot(time.Now().UTC(), playerID)
 		showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == StatusLobby && len(snap.Players) >= MinPlayers
-		vm := snapToVM(snap, showStart, len(snap.Players))
+		vm := snapToVM(snap, showStart, len(snap.Players), playerName)
 		lobbyHTML := ""
 		if snap.Status == StatusLobby {
 			lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
@@ -239,7 +240,7 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 		case event := <-sub:
 			snap := g.Snapshot(time.Now().UTC(), playerID)
 			showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == StatusLobby && len(snap.Players) >= MinPlayers
-			vm := snapToVM(snap, showStart, len(snap.Players))
+			vm := snapToVM(snap, showStart, len(snap.Players), playerName)
 			switch event {
 			case "lobby":
 				lobbyHTML := ""
@@ -274,8 +275,9 @@ func (h *Handler) roundFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := getPlayerID(r, gameID)
+	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	renderFragment(w, r.Context(), explainviews.RoundFragment(snapToVM(snap, false, 0)))
+	renderFragment(w, r.Context(), explainviews.RoundFragment(snapToVM(snap, false, 0, pname)))
 }
 
 func (h *Handler) canvasFragment(w http.ResponseWriter, r *http.Request) {
@@ -286,8 +288,9 @@ func (h *Handler) canvasFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := getPlayerID(r, gameID)
+	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	renderFragment(w, r.Context(), explainviews.CanvasFragment(snapToVM(snap, false, 0)))
+	renderFragment(w, r.Context(), explainviews.CanvasFragment(snapToVM(snap, false, 0, pname)))
 }
 
 func (h *Handler) wordHintFragment(w http.ResponseWriter, r *http.Request) {
@@ -298,8 +301,9 @@ func (h *Handler) wordHintFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := getPlayerID(r, gameID)
+	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	renderFragment(w, r.Context(), explainviews.WordHintFragment(snapToVM(snap, false, 0), gameID))
+	renderFragment(w, r.Context(), explainviews.WordHintFragment(snapToVM(snap, false, 0, pname), gameID))
 }
 
 func (h *Handler) playersFragment(w http.ResponseWriter, r *http.Request) {
@@ -310,8 +314,9 @@ func (h *Handler) playersFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := getPlayerID(r, gameID)
+	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	renderFragment(w, r.Context(), explainviews.PlayersFragment(snapToVM(snap, false, 0), playerID))
+	renderFragment(w, r.Context(), explainviews.PlayersFragment(snapToVM(snap, false, 0, pname), playerID))
 }
 
 func (h *Handler) scoresFragment(w http.ResponseWriter, r *http.Request) {
@@ -322,8 +327,9 @@ func (h *Handler) scoresFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := getPlayerID(r, gameID)
+	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	renderFragment(w, r.Context(), explainviews.ScoresFragment(snapToVM(snap, false, 0)))
+	renderFragment(w, r.Context(), explainviews.ScoresFragment(snapToVM(snap, false, 0, pname)))
 }
 
 func (h *Handler) updateCanvas(w http.ResponseWriter, r *http.Request) {
@@ -456,7 +462,7 @@ func renderComponent(ctx context.Context, c templ.Component) string {
 }
 
 // snapToVM converts a domain Snapshot into the view-layer SnapData.
-func snapToVM(snap Snapshot, showStart bool, playerCount int) viewmodel.SnapData {
+func snapToVM(snap Snapshot, showStart bool, playerCount int, currentPlayerName string) viewmodel.SnapData {
 	players := make([]viewmodel.PlayerInfo, len(snap.Players))
 	for i, p := range snap.Players {
 		players[i] = viewmodel.PlayerInfo{ID: p.ID, Name: p.Name, IsExplainer: p.IsExplainer}
@@ -495,8 +501,9 @@ func snapToVM(snap Snapshot, showStart bool, playerCount int) viewmodel.SnapData
 		RoundEmojis:      snap.RoundEmojis,
 		Players:          players,
 		Scores:           scores,
-		ShowStart:        showStart,
-		PlayerCount:      playerCount,
-		MinPlayers:       MinPlayers,
+		ShowStart:         showStart,
+		PlayerCount:       playerCount,
+		MinPlayers:        MinPlayers,
+		CurrentPlayerName: currentPlayerName,
 	}
 }

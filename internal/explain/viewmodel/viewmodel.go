@@ -51,6 +51,9 @@ type SnapData struct {
 	ShowStart   bool
 	PlayerCount int
 	MinPlayers  int
+
+	// Identity of the viewing player (empty when not joined).
+	CurrentPlayerName string
 }
 
 // GamePageData carries everything the full game page template needs.

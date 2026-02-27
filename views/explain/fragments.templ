@@ -12,162 +12,213 @@ templ LobbyFragment(snap viewmodel.SnapData, gameID string) {
 	if snap.ShowStart {
 		<button
 			type="button"
-			class="button is-primary mb-4"
+			class="button is-primary"
 			data-game-id={ gameID }
 			onclick="fetch('/game/'+this.dataset.gameId+'/start',{method:'POST'})"
 		>Start game</button>
 	} else if snap.Status == "lobby" {
-		<p class="mb-4">
-			Waiting for more players (min { strconv.Itoa(snap.MinPlayers) }).
-			Current: { strconv.Itoa(snap.PlayerCount) }.
-		</p>
+		<div class="notification is-light">
+			⏳ Waiting for more players — need at least { strconv.Itoa(snap.MinPlayers) }, have { strconv.Itoa(snap.PlayerCount) }.
+		</div>
 	}
 }
 
 // RoundFragment renders the #round section.
 templ RoundFragment(snap viewmodel.SnapData) {
 	if snap.Status == "lobby" {
-		<div class="notification is-info">Waiting to start.</div>
+		<div class="notification is-info is-light">
+			Game hasn't started yet. Waiting in the lobby…
+		</div>
 	} else if snap.Status == "finished" {
 		<div class="notification is-success">
-			Game over!
+			🎉 Game over!
 			if snap.WinnerName != "" {
-				Winner: <strong>{ snap.WinnerName }</strong>
+				<strong>{ snap.WinnerName }</strong> wins!
 			}
 		</div>
 	} else {
 		<div
-			class="box"
+			class="card"
 			data-round-timer
 			data-start-ms={ strconv.FormatInt(snap.RoundStartedMs, 10) }
 			data-duration-sec={ strconv.Itoa(snap.RoundDurationSec) }
 			data-next-round-ms={ strconv.FormatInt(snap.NextRoundAtMs, 10) }
 		>
-			<div class="level is-mobile mb-2">
-				<div class="level-left">
-					<div class="level-item">
-						<p class="subtitle is-6">
-							Round { strconv.Itoa(snap.CurrentRound) }/{ strconv.Itoa(snap.Rounds) }
-						</p>
+			<div class="card-content">
+				<div class="level is-mobile mb-3">
+					<div class="level-left">
+						<div class="level-item">
+							<p class="subtitle is-6">Round { strconv.Itoa(snap.CurrentRound) } of { strconv.Itoa(snap.Rounds) }</p>
+						</div>
+					</div>
+					<div class="level-right">
+						<div class="level-item">
+							if snap.RoundWinnerName == "" && snap.NextRoundAtMs == 0 {
+								<span class="tag is-dark is-medium">⏱ <span class="ml-1" data-timer>--</span></span>
+							}
+						</div>
 					</div>
 				</div>
-				<div class="level-right">
-					<div class="level-item">
-						if snap.RoundWinnerName == "" && snap.NextRoundAtMs == 0 {
-							<span class="tag is-dark">Time left: <span class="ml-1" data-timer>--</span></span>
-						}
+				if snap.ExplainerName != "" {
+					<p class="mb-2">
+						Explainer: <span class="tag is-info is-light is-medium">{ snap.ExplainerName }</span>
+					</p>
+				}
+				if snap.RoundWinnerName != "" {
+					<div class="notification is-success is-light mt-2 mb-0 py-3">
+						🎉 <strong>{ snap.RoundWinnerName }</strong> guessed it!
+						Next round in <strong><span data-next-timer>--</span>s</strong>.
 					</div>
-				</div>
+				}
 			</div>
-			if snap.ExplainerName != "" {
-				<p>Explainer: <strong>{ snap.ExplainerName }</strong></p>
-			}
-			if snap.RoundWinnerName != "" {
-				<p class="has-text-success mt-2">
-					{ snap.RoundWinnerName } got it! Next round in <span data-next-timer>--</span>s.
-				</p>
-			}
 		</div>
 	}
 }
 
 // CanvasFragment renders the #canvas section.
 templ CanvasFragment(snap viewmodel.SnapData) {
-	<div class="box">
-		<h3 class="subtitle">Canvas</h3>
-		<div
-			id="canvas-area"
-			class="mb-3"
-			style="min-height:200px;border:1px solid #ccc;position:relative;overflow:hidden;"
-		>
-			for _, item := range snap.Canvas {
-				<span
-					class="canvas-emoji"
-					data-id={ item.ID }
-					data-emoji={ item.Emoji }
-					style={ templ.SafeCSS(fmt.Sprintf("position:absolute;left:%.0fpx;top:%.0fpx;font-size:2rem;cursor:grab;user-select:none;", item.X, item.Y)) }
-				>{ item.Emoji }</span>
-			}
-		</div>
-		if snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
-			<div class="emoji-palette mb-2">
-				for _, em := range snap.RoundEmojis {
-					<button
-						type="button"
-						class="button is-small emoji-btn"
-						draggable="true"
-						data-emoji={ em }
-						style="cursor:grab;font-size:1.25rem;"
-					>{ em }</button>
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Canvas</h2>
+			<div
+				id="canvas-area"
+				class="canvas-area mb-3"
+			>
+				for _, item := range snap.Canvas {
+					<span
+						class="canvas-emoji"
+						data-id={ item.ID }
+						data-emoji={ item.Emoji }
+						style={ templ.SafeCSS(fmt.Sprintf("position:absolute;left:%.0fpx;top:%.0fpx;font-size:2rem;cursor:grab;user-select:none;", item.X, item.Y)) }
+					>{ item.Emoji }</span>
 				}
 			</div>
-			<p class="help">Drag emojis from the palette onto the canvas. Drag placed emojis to reposition.</p>
-		}
+			if snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
+				<div class="emoji-palette mb-2">
+					for _, em := range snap.RoundEmojis {
+						<button
+							type="button"
+							class="button is-light is-small emoji-btn"
+							draggable="true"
+							data-emoji={ em }
+							style="font-size:1.4rem;cursor:grab;"
+						>{ em }</button>
+					}
+				</div>
+				<p class="help">Drag emojis onto the canvas. Drag placed emojis to reposition them.</p>
+			}
+			if snap.Status == "lobby" {
+				<p class="has-text-grey-light has-text-centered py-4">The canvas will appear here once the game starts.</p>
+			}
+		</div>
 	</div>
 }
 
 // WordHintFragment renders the #wordhint section.
-// The gameID is passed separately because fragments are also rendered in SSE handlers.
 templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
-	<div class="box">
-		<h3 class="subtitle">Word</h3>
-		<p class="is-size-4">
-			if snap.IsExplainer {
-				<strong>{ snap.Word }</strong>
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Word</h2>
+			if snap.Status == "lobby" {
+				<p class="has-text-grey-light">The word will be revealed when the round starts.</p>
+			} else if snap.IsExplainer {
+				<p class="help mb-1">You are the explainer — use emojis to hint this word:</p>
+				<p class="title is-3 mt-2">{ snap.Word }</p>
 			} else {
-				<span class="word-display">{ snap.RevealedWord }</span>
-				({ strconv.Itoa(snap.WordLength) } letters)
+				<p class="help mb-2">{ strconv.Itoa(snap.WordLength) } letters</p>
+				<ul class="word-letters">
+					for _, ch := range wordChars(snap.RevealedWord) {
+						if ch == " " {
+							<li class="word-letter is-space"></li>
+						} else if ch == "_" {
+							<li class="word-letter is-hidden"></li>
+						} else {
+							<li class="word-letter">{ ch }</li>
+						}
+					}
+				</ul>
+				if snap.Status == "in_progress" && snap.RoundWinnerName == "" {
+					<form
+						class="mt-3"
+						data-game-id={ gameID }
+						onsubmit="(function(f){var i=f.querySelector('input[name=guess]');var g=i.value.trim();if(!g)return false;fetch('/game/'+f.dataset.gameId+'/guess',{method:'POST',body:new URLSearchParams({guess:g})}).then(function(){i.value='';i.focus();});return false;})(this);return false;"
+					>
+						<div class="field has-addons">
+							<div class="control is-expanded">
+								<input class="input" name="guess" placeholder="Type your guess…" autocomplete="off"/>
+							</div>
+							<div class="control">
+								<button type="submit" class="button is-primary">Guess</button>
+							</div>
+						</div>
+					</form>
+				}
+				if snap.RoundWinnerName != "" {
+					<p class="has-text-success mt-2">✅ Guessed by <strong>{ snap.RoundWinnerName }</strong>!</p>
+				}
 			}
-		</p>
-		if !snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
-			<form
-				data-game-id={ gameID }
-				onsubmit="(function(f){var i=f.querySelector('input[name=guess]');var g=i.value.trim();if(!g)return false;fetch('/game/'+f.dataset.gameId+'/guess',{method:'POST',body:new URLSearchParams({guess:g})}).then(function(){i.value='';i.focus();});return false;})(this);return false;"
-			>
-				<div class="field has-addons">
-					<div class="control">
-						<input class="input" name="guess" placeholder="Your guess" autocomplete="off"/>
-					</div>
-					<div class="control">
-						<button type="submit" class="button is-primary">Guess</button>
-					</div>
-				</div>
-			</form>
-		}
+		</div>
 	</div>
 }
 
 // PlayersFragment renders the #players section.
 templ PlayersFragment(snap viewmodel.SnapData, currentPlayerID string) {
-	<div class="box">
-		<h3 class="subtitle">Players</h3>
-		<ul>
-			for _, p := range snap.Players {
-				<li>
-					if p.ID == currentPlayerID {
-						<strong>{ p.Name }</strong>
-					} else {
-						{ p.Name }
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Players</h2>
+			if len(snap.Players) == 0 {
+				<p class="has-text-grey">No players yet.</p>
+			} else {
+				<ul>
+					for _, p := range snap.Players {
+						<li class="mb-2" style="display:flex;align-items:center;gap:0.5rem;">
+							if p.ID == currentPlayerID {
+								<strong>{ p.Name }</strong>
+							} else {
+								{ p.Name }
+							}
+							if p.IsExplainer {
+								<span class="tag is-info is-light">explainer</span>
+							} else {
+								<span class="tag is-light">guesser</span>
+							}
+						</li>
 					}
-					if p.IsExplainer {
-						(explainer)
-					} else {
-						(guesser)
-					}
-				</li>
+				</ul>
 			}
-		</ul>
+		</div>
 	</div>
 }
 
 // ScoresFragment renders the #scores section.
 templ ScoresFragment(snap viewmodel.SnapData) {
-	<div class="box">
-		<h3 class="subtitle">Scores</h3>
-		<ol>
-			for _, s := range snap.Scores {
-				<li>{ s.Name }: { strconv.Itoa(s.Points) }</li>
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Scores</h2>
+			if len(snap.Scores) == 0 {
+				<p class="has-text-grey">No scores yet.</p>
+			} else {
+				<ol>
+					for _, s := range snap.Scores {
+						<li class="mb-1">
+							if s.Name == snap.CurrentPlayerName {
+								<strong>{ s.Name }</strong>: { strconv.Itoa(s.Points) }
+							} else {
+								{ s.Name }: { strconv.Itoa(s.Points) }
+							}
+						</li>
+					}
+				</ol>
 			}
-		</ol>
+		</div>
 	</div>
+}
+
+// wordChars splits a word string into individual UTF-8 characters.
+func wordChars(word string) []string {
+	chars := make([]string, 0, len(word))
+	for _, r := range word {
+		chars = append(chars, string(r))
+	}
+	return chars
 }

@@ -8,7 +8,11 @@ package explainviews
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "dagame/internal/explain/viewmodel"
+import (
+	"strconv"
+
+	"dagame/internal/explain/viewmodel"
+)
 
 func GamePage(data viewmodel.GamePageData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -31,82 +35,90 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Explain</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"></head><body><section class=\"section\"><div id=\"game-root\" class=\"container\" data-game-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Explain</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = explainStyles().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</head><body><section class=\"section\"><div id=\"game-root\" class=\"container\" data-game-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.GameID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 16, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 22, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><h1 class=\"title is-2\">Explain</h1>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"><h1 class=\"title is-2\"><a href=\"/\" class=\"has-text-dark\" style=\"text-decoration:none;\">Explain 🤔</a></h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if !data.HasPlayer {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"card\"><div class=\"card-content\"><h2 class=\"title is-5\">Join the game</h2><form method=\"POST\" action=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"columns is-centered\"><div class=\"column is-half\"><div class=\"card\"><div class=\"card-content\"><h2 class=\"title is-5\">Join the game</h2><form method=\"POST\" action=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/game/" + data.GameID + "/join"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 22, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 32, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><div class=\"field\"><label class=\"label\" for=\"username\">Your name</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"username\" name=\"username\" placeholder=\"Pick a name\" maxlength=\"20\" required></div></div><div class=\"field\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\">Join</button></div></div></form><p class=\"help mt-3\">Invite link: ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><div class=\"field\"><label class=\"label\" for=\"username\">Your name</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"username\" name=\"username\" placeholder=\"Pick a name\" maxlength=\"20\" required autofocus></div></div><div class=\"field\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\">Join game</button></div></div></form><p class=\"help mt-3\">Invite a friend: ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 35, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 45, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p></div></div></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"mb-2\">Hello, <strong>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <div class=\"notification is-light invite-url mb-4\"><div class=\"field has-addons\"><div class=\"control is-expanded\"><input id=\"invite-input\" class=\"input is-small\" type=\"text\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.PlayerName)
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 39, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 55, Col: 91}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</strong></p><div class=\"notification is-light mb-4\"><div class=\"field has-addons\"><div class=\"control is-expanded\"><input class=\"input is-small\" type=\"text\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" readonly></div><div class=\"control\"><button id=\"copy-btn\" class=\"button is-info is-small\" type=\"button\" data-url=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 43, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 62, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" readonly></div></div></div><div class=\"columns\"><div class=\"column is-two-thirds\"><div id=\"lobby-actions\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" onclick=\"(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)\">Copy</button></div></div></div><div class=\"columns\"><div class=\"column is-two-thirds\"><div id=\"lobby-actions\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -114,7 +126,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div id=\"round\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><div id=\"round\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -122,7 +134,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><div id=\"canvas\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div id=\"canvas\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -130,7 +142,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div id=\"wordhint\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div><div id=\"wordhint\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -138,7 +150,43 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div><div class=\"column\"><div id=\"players\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div><div class=\"column\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if data.Snap.Status == "lobby" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"card mb-4\"><div class=\"card-content\"><h2 class=\"title is-6 mb-3\">Game settings</h2><div class=\"settings-item\"><span class=\"has-text-grey\">Rounds</span> <strong>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var7 string
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(data.Snap.Rounds))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 92, Col: 44}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</strong></div><div class=\"settings-item\"><span class=\"has-text-grey\">Seconds per round</span> <strong>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var8 string
+				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(data.Snap.RoundDurationSec))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 96, Col: 54}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</strong></div></div></div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div id=\"players\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -146,7 +194,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><div id=\"scores\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><div id=\"scores\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -154,17 +202,22 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div></div><script>\n(function(){\nvar root=document.getElementById('game-root');\nvar gid=root.dataset.gameId;\nvar _dragging=false;\nvar _timerInterval=null;\n\nfunction cleanupCountdown(){\n  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }\n}\nfunction initCountdown(){\n  cleanupCountdown();\n  var el=document.querySelector('[data-round-timer]');\n  if(!el) return;\n  var startMs=Number(el.dataset.startMs||'0');\n  var durationSec=Number(el.dataset.durationSec||'0');\n  var nextRoundMs=Number(el.dataset.nextRoundMs||'0');\n  if(!startMs||!durationSec) return;\n  var endMs=startMs+durationSec*1000;\n  var timerEl=el.querySelector('[data-timer]');\n  var nextTimerEl=el.querySelector('[data-next-timer]');\n  var tick=function(){\n    var now=Date.now();\n    if(timerEl){ timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+'s'; }\n    if(nextTimerEl&&nextRoundMs){ nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+'s'; }\n  };\n  tick();\n  _timerInterval=setInterval(tick,1000);\n}\ninitCountdown();\n\nvar src=new EventSource(\"/game/\"+gid+\"/stream\");\nsrc.addEventListener(\"lobby\",   function(e){ var el=document.getElementById(\"lobby-actions\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"round\",   function(e){ cleanupCountdown(); var el=document.getElementById(\"round\"); if(el) el.innerHTML=e.data; initCountdown(); });\nsrc.addEventListener(\"canvas\",  function(e){ if(_dragging) return; var el=document.getElementById(\"canvas\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"wordhint\",function(e){ var el=document.getElementById(\"wordhint\");      if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"players\", function(e){ var el=document.getElementById(\"players\");       if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"scores\",  function(e){ var el=document.getElementById(\"scores\");        if(el) el.innerHTML=e.data; });\n\nfunction collectItems(area){\n  var items=[];\n  area.querySelectorAll(\".canvas-emoji\").forEach(function(el){\n    items.push({ID:el.dataset.id,Emoji:el.dataset.emoji,X:parseFloat(el.style.left)||0,Y:parseFloat(el.style.top)||0});\n  });\n  return items;\n}\nfunction saveCanvas(items){\n  fetch(\"/game/\"+gid+\"/canvas\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(items)});\n}\n\ndocument.body.addEventListener(\"dragstart\",function(e){\n  var btn=e.target.closest(\".emoji-btn\");\n  if(!btn) return;\n  e.dataTransfer.setData(\"text/plain\",btn.dataset.emoji);\n  e.dataTransfer.effectAllowed=\"copy\";\n});\ndocument.body.addEventListener(\"dragover\",function(e){\n  if(e.target.closest(\"#canvas-area\")){ e.preventDefault(); e.dataTransfer.dropEffect=\"copy\"; }\n});\ndocument.body.addEventListener(\"drop\",function(e){\n  var area=e.target.closest(\"#canvas-area\");\n  if(!area) return;\n  var emoji=e.dataTransfer.getData(\"text/plain\");\n  if(!emoji) return;\n  e.preventDefault();\n  var rect=area.getBoundingClientRect();\n  var x=e.clientX-rect.left-16;\n  var y=e.clientY-rect.top-16;\n  var id=\"e\"+Date.now()+\"-\"+Math.random().toString(36).slice(2);\n  var span=document.createElement(\"span\");\n  span.className=\"canvas-emoji\";\n  span.dataset.id=id; span.dataset.emoji=emoji;\n  span.style.cssText=\"position:absolute;left:\"+x+\"px;top:\"+y+\"px;font-size:2rem;cursor:grab;user-select:none;\";\n  span.textContent=emoji;\n  area.appendChild(span);\n  saveCanvas(collectItems(area));\n});\n\nvar _drag=null;\ndocument.body.addEventListener(\"mousedown\",function(e){\n  var el=e.target.closest(\".canvas-emoji\");\n  if(!el) return;\n  var area=el.closest(\"#canvas-area\");\n  if(!area) return;\n  e.preventDefault();\n  _dragging=true;\n  var er=el.getBoundingClientRect();\n  _drag={el:el,area:area,ox:e.clientX-er.left,oy:e.clientY-er.top};\n  el.style.zIndex=\"100\"; el.style.cursor=\"grabbing\";\n});\ndocument.addEventListener(\"mousemove\",function(e){\n  if(!_drag) return;\n  var ar=_drag.area.getBoundingClientRect();\n  _drag.el.style.left=(e.clientX-ar.left-_drag.ox)+\"px\";\n  _drag.el.style.top =(e.clientY-ar.top -_drag.oy)+\"px\";\n});\ndocument.addEventListener(\"mouseup\",function(){\n  if(!_drag) return;\n  _drag.el.style.zIndex=\"\"; _drag.el.style.cursor=\"grab\";\n  saveCanvas(collectItems(_drag.area));\n  _drag=null; _dragging=false;\n});\n})();\n\t\t\t\t\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div></div><script>\n(function(){\nvar root=document.getElementById('game-root');\nvar gid=root.dataset.gameId;\nvar _dragging=false;\nvar _timerInterval=null;\n\nfunction cleanupCountdown(){\n  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }\n}\nfunction initCountdown(){\n  cleanupCountdown();\n  var el=document.querySelector('[data-round-timer]');\n  if(!el) return;\n  var startMs=Number(el.dataset.startMs||'0');\n  var durationSec=Number(el.dataset.durationSec||'0');\n  var nextRoundMs=Number(el.dataset.nextRoundMs||'0');\n  if(!startMs||!durationSec) return;\n  var endMs=startMs+durationSec*1000;\n  var timerEl=el.querySelector('[data-timer]');\n  var nextTimerEl=el.querySelector('[data-next-timer]');\n  var tick=function(){\n    var now=Date.now();\n    if(timerEl){ timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+'s'; }\n    if(nextTimerEl&&nextRoundMs){ nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+'s'; }\n  };\n  tick();\n  _timerInterval=setInterval(tick,1000);\n}\ninitCountdown();\n\nvar src=new EventSource(\"/game/\"+gid+\"/stream\");\nsrc.addEventListener(\"lobby\",   function(e){ var el=document.getElementById(\"lobby-actions\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"round\",   function(e){ cleanupCountdown(); var el=document.getElementById(\"round\"); if(el) el.innerHTML=e.data; initCountdown(); });\nsrc.addEventListener(\"canvas\",  function(e){ if(_dragging) return; var el=document.getElementById(\"canvas\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"wordhint\",function(e){ var el=document.getElementById(\"wordhint\");      if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"players\", function(e){ var el=document.getElementById(\"players\");       if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"scores\",  function(e){ var el=document.getElementById(\"scores\");        if(el) el.innerHTML=e.data; });\n\nfunction collectItems(area){\n  var items=[];\n  area.querySelectorAll(\".canvas-emoji\").forEach(function(el){\n    items.push({ID:el.dataset.id,Emoji:el.dataset.emoji,X:parseFloat(el.style.left)||0,Y:parseFloat(el.style.top)||0});\n  });\n  return items;\n}\nfunction saveCanvas(items){\n  fetch(\"/game/\"+gid+\"/canvas\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(items)});\n}\n\ndocument.body.addEventListener(\"dragstart\",function(e){\n  var btn=e.target.closest(\".emoji-btn\");\n  if(!btn) return;\n  e.dataTransfer.setData(\"text/plain\",btn.dataset.emoji);\n  e.dataTransfer.effectAllowed=\"copy\";\n});\ndocument.body.addEventListener(\"dragover\",function(e){\n  if(e.target.closest(\"#canvas-area\")){ e.preventDefault(); e.dataTransfer.dropEffect=\"copy\"; }\n});\ndocument.body.addEventListener(\"drop\",function(e){\n  var area=e.target.closest(\"#canvas-area\");\n  if(!area) return;\n  var emoji=e.dataTransfer.getData(\"text/plain\");\n  if(!emoji) return;\n  e.preventDefault();\n  var rect=area.getBoundingClientRect();\n  var x=e.clientX-rect.left-16;\n  var y=e.clientY-rect.top-16;\n  var id=\"e\"+Date.now()+\"-\"+Math.random().toString(36).slice(2);\n  var span=document.createElement(\"span\");\n  span.className=\"canvas-emoji\";\n  span.dataset.id=id; span.dataset.emoji=emoji;\n  span.style.cssText=\"position:absolute;left:\"+x+\"px;top:\"+y+\"px;font-size:2rem;cursor:grab;user-select:none;\";\n  span.textContent=emoji;\n  area.appendChild(span);\n  saveCanvas(collectItems(area));\n});\n\nvar _drag=null;\ndocument.body.addEventListener(\"mousedown\",function(e){\n  var el=e.target.closest(\".canvas-emoji\");\n  if(!el) return;\n  var area=el.closest(\"#canvas-area\");\n  if(!area) return;\n  e.preventDefault();\n  _dragging=true;\n  var er=el.getBoundingClientRect();\n  _drag={el:el,area:area,ox:e.clientX-er.left,oy:e.clientY-er.top};\n  el.style.zIndex=\"100\"; el.style.cursor=\"grabbing\";\n});\ndocument.addEventListener(\"mousemove\",function(e){\n  if(!_drag) return;\n  var ar=_drag.area.getBoundingClientRect();\n  _drag.el.style.left=(e.clientX-ar.left-_drag.ox)+\"px\";\n  _drag.el.style.top =(e.clientY-ar.top -_drag.oy)+\"px\";\n});\ndocument.addEventListener(\"mouseup\",function(){\n  if(!_drag) return;\n  _drag.el.style.zIndex=\"\"; _drag.el.style.cursor=\"grab\";\n  saveCanvas(collectItems(_drag.area));\n  _drag=null; _dragging=false;\n});\n})();\n\t\t\t\t\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div></section></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></section></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
+}
+
+// itoa is a small helper for use in templ expressions.
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }
 
 var _ = templruntime.GeneratedTemplate

@@ -1,0 +1,100 @@
+package explainviews
+
+// explainStyles emits the shared <style> block used by every page.
+templ explainStyles() {
+	<style>
+		@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap");
+
+		html, body {
+			background: radial-gradient(circle at top left, #fff4d6 0%, #f8f3ff 35%, #e8f7ff 100%);
+			font-family: "Fredoka", "Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif;
+			min-height: 100%;
+			background-attachment: fixed;
+		}
+
+		h1.title, h2.title, .subtitle { letter-spacing: 0.4px; }
+
+		.card {
+			box-shadow: 0 16px 32px rgba(76, 90, 204, 0.12);
+			border: 2px solid #f1ecff;
+			border-radius: 16px;
+		}
+
+		.button.is-primary, .button.is-info, .button.is-link {
+			box-shadow: 0 8px 18px rgba(108, 99, 255, 0.3);
+			border-radius: 999px;
+		}
+
+		/* Invite URL bar */
+		.invite-url input {
+			font-family: "SFMono-Regular", ui-monospace, monospace;
+			font-size: 0.85rem;
+		}
+
+		/* Canvas drop zone */
+		.canvas-area {
+			min-height: 300px;
+			border: 2px dashed #d8c8ff;
+			border-radius: 12px;
+			background: #faf8ff;
+			position: relative;
+			overflow: hidden;
+		}
+		.canvas-area:empty::after {
+			content: "Canvas is empty";
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			color: #c0b4e8;
+			font-size: 0.9rem;
+		}
+
+		/* Emoji palette */
+		.emoji-palette { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+		.emoji-btn { border-radius: 10px !important; }
+
+		/* Word letter boxes */
+		.word-letters {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.45rem;
+			list-style: none;
+			padding: 0;
+			margin: 0.5rem 0 1rem;
+		}
+		.word-letter {
+			min-width: 2.4rem;
+			height: 3rem;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: #fff;
+			border: 2px solid #c8b4ff;
+			border-radius: 10px;
+			font-size: 1.5rem;
+			font-weight: 600;
+			padding: 0 0.3rem;
+		}
+		.word-letter.is-hidden {
+			background: #f0ecff;
+			border-color: #ddd;
+			min-width: 2.4rem;
+		}
+		.word-letter.is-space {
+			border: none;
+			background: transparent;
+			min-width: 1rem;
+		}
+
+		/* Settings sidebar */
+		.settings-item { display: flex; justify-content: space-between; padding: 0.25rem 0; border-bottom: 1px solid #f0ecff; }
+		.settings-item:last-child { border-bottom: none; }
+
+		/* Notification for game-start state */
+		.notification.is-light {
+			background: rgba(255,255,255,0.9);
+			border: 2px dashed #d8c8ff;
+		}
+	</style>
+}
