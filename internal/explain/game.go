@@ -271,10 +271,8 @@ func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 	return next, true
 }
 
-// AdvanceIfNeeded advances to next round or finishes game; updates TimedRounds and game state.
-func (g *Game) AdvanceIfNeeded(now time.Time) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+// advanceIfNeededLocked advances the game state. Must be called with g.mu already held.
+func (g *Game) advanceIfNeededLocked(now time.Time) bool {
 	if g.Status != StatusInProgress || g.TimedRounds.RoundStarted.IsZero() {
 		return false
 	}
@@ -290,6 +288,13 @@ func (g *Game) AdvanceIfNeeded(now time.Time) bool {
 		return true
 	}
 	return false
+}
+
+// AdvanceIfNeeded advances to next round or finishes game; updates TimedRounds and game state.
+func (g *Game) AdvanceIfNeeded(now time.Time) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.advanceIfNeededLocked(now)
 }
 
 // RevealLettersIfNeeded reveals one letter at 50% and one at 75% of round time. Returns true if state changed.
@@ -356,7 +361,7 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 	if _, ok := g.Players[playerID]; !ok {
 		return false, errors.New("player not found")
 	}
-	g.AdvanceIfNeeded(now)
+	g.advanceIfNeededLocked(now)
 	if g.Status != StatusInProgress {
 		return false, nil
 	}
