@@ -126,7 +126,7 @@ templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
 				<p class="title is-3 mt-2">{ snap.Word }</p>
 			} else {
 				<ul class="word-letters mb-2">
-					for _, ch := range wordChars(snap.RevealedWord) {
+					for _, ch := range wordBoxes(snap.RevealedWord, snap.WordLength) {
 						if ch == " " {
 							<li class="word-letter is-space"></li>
 						} else if ch == "_" {
@@ -219,4 +219,18 @@ func wordChars(word string) []string {
 		chars = append(chars, string(r))
 	}
 	return chars
+}
+
+// wordBoxes returns the characters to render as letter boxes.
+// It uses revealed (e.g. "a__le") when available, or falls back to
+// wordLength empty slots so boxes always show when a round is active.
+func wordBoxes(revealed string, wordLength int) []string {
+	if revealed != "" {
+		return wordChars(revealed)
+	}
+	boxes := make([]string, wordLength)
+	for i := range boxes {
+		boxes[i] = "_"
+	}
+	return boxes
 }
