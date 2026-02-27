@@ -420,11 +420,7 @@ func (h *Handler) submitGuess(w http.ResponseWriter, r *http.Request) {
 		h.store.Publish(gameID, "players")
 		h.store.Publish(gameID, "wordhint")
 	}
-	if r.Header.Get("HX-Request") == "true" {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func getPlayerID(r *http.Request, gameID string) string {
@@ -670,7 +666,7 @@ func renderWordHintFragmentHTML(snap Snapshot, gameID string) string {
 	} else {
 		b.WriteString(`<span class="word-display">` + snap.RevealedWord + `</span> (` + strconv.Itoa(snap.WordLength) + ` letters)`)
 		if snap.Status == StatusInProgress && snap.RoundWinnerName == "" {
-			b.WriteString(`</p><form method="POST" action="/game/` + gameID + `/guess" hx-post="/game/` + gameID + `/guess" hx-trigger="submit" hx-swap="none" hx-target="#wordhint">`)
+			b.WriteString(`</p><form onsubmit="(function(f){var i=f.querySelector('input[name=guess]');var g=i.value.trim();if(!g)return;fetch('/game/` + gameID + `/guess',{method:'POST',body:new URLSearchParams({guess:g})}).then(function(){i.value='';i.focus();});f.returnValue=false;})(this);return false;">`)
 			b.WriteString(`<div class="field has-addons"><div class="control"><input class="input" name="guess" placeholder="Your guess" autocomplete="off"></div><div class="control"><button type="submit" class="button is-primary">Guess</button></div></div></form>`)
 		} else {
 			b.WriteString(`</p>`)
