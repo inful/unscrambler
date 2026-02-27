@@ -528,6 +528,10 @@ func (g *Game) Snapshot(now time.Time, playerID string) Snapshot {
 	if playerID == g.ExplainerID {
 		wordForView = g.Word
 	}
+	// Reveal the full word to guessers once someone has guessed it correctly.
+	if g.RoundWinnerID != "" {
+		revealedWord = g.Word
+	}
 
 	return Snapshot{
 		ID:              g.ID,

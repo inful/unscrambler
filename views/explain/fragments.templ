@@ -125,8 +125,7 @@ templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
 				<p class="help mb-1">You are the explainer — use emojis to hint this word:</p>
 				<p class="title is-3 mt-2">{ snap.Word }</p>
 			} else {
-				<p class="help mb-2">{ strconv.Itoa(snap.WordLength) } letters</p>
-				<ul class="word-letters">
+				<ul class="word-letters mb-2">
 					for _, ch := range wordChars(snap.RevealedWord) {
 						if ch == " " {
 							<li class="word-letter is-space"></li>
@@ -137,9 +136,11 @@ templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
 						}
 					}
 				</ul>
-				if snap.Status == "in_progress" && snap.RoundWinnerName == "" {
+				<p class="help mb-3">{ strconv.Itoa(snap.WordLength) } letters</p>
+				if snap.RoundWinnerName != "" {
+					<p class="has-text-success">✅ Guessed by <strong>{ snap.RoundWinnerName }</strong>!</p>
+				} else if snap.Status == "in_progress" {
 					<form
-						class="mt-3"
 						data-game-id={ gameID }
 						onsubmit="(function(f){var i=f.querySelector('input[name=guess]');var g=i.value.trim();if(!g)return false;fetch('/game/'+f.dataset.gameId+'/guess',{method:'POST',body:new URLSearchParams({guess:g})}).then(function(){i.value='';i.focus();});return false;})(this);return false;"
 					>
@@ -152,9 +153,6 @@ templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
 							</div>
 						</div>
 					</form>
-				}
-				if snap.RoundWinnerName != "" {
-					<p class="has-text-success mt-2">✅ Guessed by <strong>{ snap.RoundWinnerName }</strong>!</p>
 				}
 			}
 		</div>
