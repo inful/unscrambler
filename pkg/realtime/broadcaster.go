@@ -1,4 +1,4 @@
-package game
+package realtime
 
 import "sync"
 
@@ -17,7 +17,6 @@ func NewBroadcaster() *Broadcaster {
 
 // Subscribe registers a new subscriber and returns its event channel.
 func (b *Broadcaster) Subscribe() chan string {
-	// Buffered channel prevents a slow consumer from blocking publishes.
 	ch := make(chan string, 10)
 	b.mu.Lock()
 	b.subs[ch] = struct{}{}

@@ -1,0 +1,155 @@
+package explainviews
+
+import "dagame/internal/explain/viewmodel"
+
+templ GamePage(data viewmodel.GamePageData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Explain</title>
+			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
+		</head>
+		<body>
+			<section class="section">
+				<div id="game-root" class="container" data-game-id={ data.GameID }>
+					<h1 class="title is-2">Explain</h1>
+					if !data.HasPlayer {
+						<div class="card">
+							<div class="card-content">
+								<h2 class="title is-5">Join the game</h2>
+								<form method="POST" action={ templ.URL("/game/" + data.GameID + "/join") }>
+									<div class="field">
+										<label class="label" for="username">Your name</label>
+										<div class="control">
+											<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required/>
+										</div>
+									</div>
+									<div class="field">
+										<div class="control">
+											<button type="submit" class="button is-primary">Join</button>
+										</div>
+									</div>
+								</form>
+								<p class="help mt-3">Invite link: { data.InviteURL }</p>
+							</div>
+						</div>
+					} else {
+						<p class="mb-2">Hello, <strong>{ data.PlayerName }</strong></p>
+						<div class="notification is-light mb-4">
+							<div class="field has-addons">
+								<div class="control is-expanded">
+									<input class="input is-small" type="text" value={ data.InviteURL } readonly/>
+								</div>
+							</div>
+						</div>
+						<div class="columns">
+							<div class="column is-two-thirds">
+								<div id="lobby-actions">
+									@LobbyFragment(data.Snap, data.GameID)
+								</div>
+								<div id="round">
+									@RoundFragment(data.Snap)
+								</div>
+								<div id="canvas">
+									@CanvasFragment(data.Snap)
+								</div>
+								<div id="wordhint">
+									@WordHintFragment(data.Snap, data.GameID)
+								</div>
+							</div>
+							<div class="column">
+								<div id="players">
+									@PlayersFragment(data.Snap, data.PlayerID)
+								</div>
+								<div id="scores">
+									@ScoresFragment(data.Snap)
+								</div>
+							</div>
+						</div>
+						<script>
+(function(){
+var root=document.getElementById('game-root');
+var gid=root.dataset.gameId;
+var _dragging=false;
+
+var src=new EventSource("/game/"+gid+"/stream");
+src.addEventListener("lobby",   function(e){ var el=document.getElementById("lobby-actions"); if(el) el.innerHTML=e.data; });
+src.addEventListener("round",   function(e){ var el=document.getElementById("round");         if(el) el.innerHTML=e.data; });
+src.addEventListener("canvas",  function(e){ if(_dragging) return; var el=document.getElementById("canvas"); if(el) el.innerHTML=e.data; });
+src.addEventListener("wordhint",function(e){ var el=document.getElementById("wordhint");      if(el) el.innerHTML=e.data; });
+src.addEventListener("players", function(e){ var el=document.getElementById("players");       if(el) el.innerHTML=e.data; });
+src.addEventListener("scores",  function(e){ var el=document.getElementById("scores");        if(el) el.innerHTML=e.data; });
+
+function collectItems(area){
+  var items=[];
+  area.querySelectorAll(".canvas-emoji").forEach(function(el){
+    items.push({ID:el.dataset.id,Emoji:el.dataset.emoji,X:parseFloat(el.style.left)||0,Y:parseFloat(el.style.top)||0});
+  });
+  return items;
+}
+function saveCanvas(items){
+  fetch("/game/"+gid+"/canvas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(items)});
+}
+
+document.body.addEventListener("dragstart",function(e){
+  var btn=e.target.closest(".emoji-btn");
+  if(!btn) return;
+  e.dataTransfer.setData("text/plain",btn.dataset.emoji);
+  e.dataTransfer.effectAllowed="copy";
+});
+document.body.addEventListener("dragover",function(e){
+  if(e.target.closest("#canvas-area")){ e.preventDefault(); e.dataTransfer.dropEffect="copy"; }
+});
+document.body.addEventListener("drop",function(e){
+  var area=e.target.closest("#canvas-area");
+  if(!area) return;
+  var emoji=e.dataTransfer.getData("text/plain");
+  if(!emoji) return;
+  e.preventDefault();
+  var rect=area.getBoundingClientRect();
+  var x=e.clientX-rect.left-16;
+  var y=e.clientY-rect.top-16;
+  var id="e"+Date.now()+"-"+Math.random().toString(36).slice(2);
+  var span=document.createElement("span");
+  span.className="canvas-emoji";
+  span.dataset.id=id; span.dataset.emoji=emoji;
+  span.style.cssText="position:absolute;left:"+x+"px;top:"+y+"px;font-size:2rem;cursor:grab;user-select:none;";
+  span.textContent=emoji;
+  area.appendChild(span);
+  saveCanvas(collectItems(area));
+});
+
+var _drag=null;
+document.body.addEventListener("mousedown",function(e){
+  var el=e.target.closest(".canvas-emoji");
+  if(!el) return;
+  var area=el.closest("#canvas-area");
+  if(!area) return;
+  e.preventDefault();
+  _dragging=true;
+  var er=el.getBoundingClientRect();
+  _drag={el:el,area:area,ox:e.clientX-er.left,oy:e.clientY-er.top};
+  el.style.zIndex="100"; el.style.cursor="grabbing";
+});
+document.addEventListener("mousemove",function(e){
+  if(!_drag) return;
+  var ar=_drag.area.getBoundingClientRect();
+  _drag.el.style.left=(e.clientX-ar.left-_drag.ox)+"px";
+  _drag.el.style.top =(e.clientY-ar.top -_drag.oy)+"px";
+});
+document.addEventListener("mouseup",function(){
+  if(!_drag) return;
+  _drag.el.style.zIndex=""; _drag.el.style.cursor="grab";
+  saveCanvas(collectItems(_drag.area));
+  _drag=null; _dragging=false;
+});
+})();
+						</script>
+					}
+				</div>
+			</section>
+		</body>
+	</html>
+}

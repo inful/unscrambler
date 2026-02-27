@@ -1,7 +1,6 @@
 package game
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base32"
 	"errors"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"dagame/pkg/realtime"
 )
 
 const (
@@ -17,127 +18,75 @@ const (
 	StatusFinished   = "finished"
 )
 
+// Store holds games and delegates to realtime.RoomStore for persistence and broadcast.
 type Store struct {
-	mu    sync.RWMutex
-	games map[string]*Game
-	loops map[string]context.CancelFunc
-	hubs  map[string]*Broadcaster
-	wakes map[string]chan struct{}
+	r *realtime.RoomStore[*Game]
 }
 
 // NewStore creates an in-memory game store with SSE broadcasters.
 func NewStore() *Store {
-	return &Store{
-		games: make(map[string]*Game),
-		loops: make(map[string]context.CancelFunc),
-		hubs:  make(map[string]*Broadcaster),
-		wakes: make(map[string]chan struct{}),
-	}
+	return &Store{r: realtime.NewRoomStore[*Game]()}
 }
 
 // CreateGame initializes a game and registers its broadcaster.
 func (s *Store) CreateGame(rounds int, duration time.Duration, lang string) *Game {
-	game := NewGame(rounds, duration, lang)
-	s.mu.Lock()
-	s.games[game.ID] = game
-	s.hubs[game.ID] = NewBroadcaster()
-	s.mu.Unlock()
-	return game
+	g := NewGame(rounds, duration, lang)
+	s.r.Create(g.ID, g)
+	return g
 }
 
 // GetGame returns a game by ID if it exists.
 func (s *Store) GetGame(id string) (*Game, bool) {
-	s.mu.RLock()
-	game, ok := s.games[id]
-	s.mu.RUnlock()
-	return game, ok
+	room, ok := s.r.Get(id)
+	if !ok {
+		return nil, false
+	}
+	return room.State, ok
 }
 
 // Broadcaster returns the SSE broadcaster for a game, creating it if missing.
-func (s *Store) Broadcaster(id string) *Broadcaster {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	hub, ok := s.hubs[id]
-	if !ok {
-		hub = NewBroadcaster()
-		s.hubs[id] = hub
-	}
-	return hub
+func (s *Store) Broadcaster(id string) *realtime.Broadcaster {
+	return s.r.Broadcaster(id)
 }
 
 // Publish notifies subscribers of a game update with a typed event.
 func (s *Store) Publish(id string, event string) {
-	hub := s.Broadcaster(id)
-	hub.Publish(event)
+	s.r.Publish(id, event)
 }
 
 // EnsureRoundLoop starts the timing loop for a game if not already running.
-func (s *Store) EnsureRoundLoop(id string, game *Game) {
-	s.mu.Lock()
-	if _, ok := s.loops[id]; ok {
-		s.mu.Unlock()
-		return
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	s.loops[id] = cancel
-	wake := make(chan struct{}, 1)
-	s.wakes[id] = wake
-	s.mu.Unlock()
-
-	go func() {
-		defer func() {
-			s.mu.Lock()
-			delete(s.loops, id)
-			delete(s.wakes, id)
-			s.mu.Unlock()
-		}()
-
-		for {
-			// NextTimer drives round end and the 5s cooldown before next round.
-			next, ok := game.NextTimer(time.Now().UTC())
-			if !ok {
-				return
-			}
-			wait := time.Until(next)
-			if wait < 0 {
-				wait = 0
-			}
-			timer := time.NewTimer(wait)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-				if game.AdvanceIfNeeded(time.Now().UTC()) {
-					s.Publish(id, "round")
-					s.Publish(id, "scores")
-					s.Publish(id, "players")
-				}
-			case <-wake:
-				// Wake forces recompute after a correct guess ends the round early.
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				continue
-			}
+func (s *Store) EnsureRoundLoop(id string, _ *Game) {
+	getState := func() *Game {
+		room, ok := s.r.Get(id)
+		if !ok {
+			return nil
 		}
-	}()
+		return room.State
+	}
+	tick := func(state *Game, now time.Time) (time.Time, []string, bool) {
+		if state == nil {
+			return time.Time{}, nil, true
+		}
+		next, ok := state.NextTimer(now)
+		if !ok {
+			return time.Time{}, nil, true
+		}
+		advanced := state.AdvanceIfNeeded(now)
+		if advanced {
+			next2, ok2 := state.NextTimer(now)
+			if !ok2 {
+				return time.Time{}, nil, true
+			}
+			return next2, []string{"round", "scores", "players"}, false
+		}
+		return next, nil, false
+	}
+	s.r.RunLoop(id, getState, tick)
 }
 
+// WakeRoundLoop unblocks the round loop so it recomputes (e.g. after early round end).
 func (s *Store) WakeRoundLoop(id string) {
-	s.mu.RLock()
-	wake, ok := s.wakes[id]
-	s.mu.RUnlock()
-	if !ok {
-		return
-	}
-	select {
-	case wake <- struct{}{}:
-	default:
-	}
+	s.r.Wake(id)
 }
 
 func NewGame(rounds int, duration time.Duration, lang string) *Game {
@@ -146,14 +95,17 @@ func NewGame(rounds int, duration time.Duration, lang string) *Game {
 	}
 	roundData := BuildRounds(lang, rounds)
 	return &Game{
-		ID:            newID(),
-		CreatedAt:     time.Now().UTC(),
-		Rounds:        rounds,
-		RoundDuration: duration,
-		RoundData:     roundData,
-		Status:        StatusLobby,
-		Lang:          lang,
-		Players:       make(map[string]*Player),
+		ID:        newID(),
+		CreatedAt: time.Now().UTC(),
+		TimedRounds: realtime.TimedRounds{
+			Rounds:   rounds,
+			Duration: duration,
+			Cooldown: realtime.DefaultCooldown,
+		},
+		RoundData: roundData,
+		Status:    StatusLobby,
+		Lang:      lang,
+		Players:   make(map[string]*Player),
 	}
 }
 
@@ -162,16 +114,12 @@ type Game struct {
 	mu            sync.Mutex
 	ID            string
 	CreatedAt     time.Time
-	Rounds        int
-	RoundDuration time.Duration
+	TimedRounds   realtime.TimedRounds // Rounds, Duration, Cooldown, CurrentRound, RoundStarted, RoundEndedAt
 	RoundData     []Round
 	Status        string
 	Lang          string
-	CurrentRound  int
-	RoundStarted  time.Time
 	RoundWinnerID string
 	RoundSolvedAt time.Time
-	RoundEndedAt  time.Time
 	OwnerID       string
 	Players       map[string]*Player
 }
@@ -215,11 +163,9 @@ func (g *Game) Start(now time.Time) error {
 		return errors.New("game already started")
 	}
 	g.Status = StatusInProgress
-	g.CurrentRound = 1
-	g.RoundStarted = now
+	g.TimedRounds.Start(now)
 	g.RoundWinnerID = ""
 	g.RoundSolvedAt = time.Time{}
-	g.RoundEndedAt = time.Time{}
 	for _, player := range g.Players {
 		player.Progress = 0
 	}
@@ -230,13 +176,11 @@ func (g *Game) Start(now time.Time) error {
 func (g *Game) Restart(now time.Time) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.RoundData = BuildRounds(g.Lang, g.Rounds)
+	g.RoundData = BuildRounds(g.Lang, g.TimedRounds.Rounds)
 	g.Status = StatusInProgress
-	g.CurrentRound = 1
-	g.RoundStarted = now
+	g.TimedRounds.Start(now)
 	g.RoundWinnerID = ""
 	g.RoundSolvedAt = time.Time{}
-	g.RoundEndedAt = time.Time{}
 	for _, player := range g.Players {
 		player.Points = 0
 		player.Progress = 0
@@ -251,35 +195,22 @@ func (g *Game) AdvanceIfNeeded(now time.Time) bool {
 }
 
 func (g *Game) advanceIfNeededLocked(now time.Time) bool {
-	changed := false
-	if g.Status != StatusInProgress || g.RoundStarted.IsZero() {
+	if g.Status != StatusInProgress || g.TimedRounds.RoundStarted.IsZero() {
 		return false
 	}
-	roundEnd := g.RoundStarted.Add(g.RoundDuration)
-	if g.RoundEndedAt.IsZero() && now.After(roundEnd) {
-		g.RoundEndedAt = roundEnd
-		changed = true
-	}
-	if g.RoundEndedAt.IsZero() {
-		return changed
-	}
-	if now.Before(g.RoundEndedAt.Add(5 * time.Second)) {
-		return changed
-	}
-	if g.CurrentRound >= g.Rounds {
+	advanced, finished := g.TimedRounds.Advance(now)
+	if finished {
 		g.Status = StatusFinished
 		return true
 	}
-	g.CurrentRound++
-	g.RoundStarted = now
-	g.RoundWinnerID = ""
-	g.RoundSolvedAt = time.Time{}
-	g.RoundEndedAt = time.Time{}
-	for _, player := range g.Players {
-		player.Progress = 0
+	if advanced {
+		g.RoundWinnerID = ""
+		g.RoundSolvedAt = time.Time{}
+		for _, player := range g.Players {
+			player.Progress = 0
+		}
 	}
-	changed = true
-	return changed
+	return advanced
 }
 
 // CurrentRoundData returns the word data for the current round.
@@ -290,10 +221,10 @@ func (g *Game) CurrentRoundData() Round {
 }
 
 func (g *Game) currentRoundDataLocked() Round {
-	if g.CurrentRound == 0 || g.CurrentRound > len(g.RoundData) {
+	if g.TimedRounds.CurrentRound == 0 || g.TimedRounds.CurrentRound > len(g.RoundData) {
 		return Round{}
 	}
-	return g.RoundData[g.CurrentRound-1]
+	return g.RoundData[g.TimedRounds.CurrentRound-1]
 }
 
 // SubmitGuess validates a guess, awards points, and ends the round on success.
@@ -303,14 +234,14 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 	if g.Status != StatusInProgress {
 		return false, errors.New("game not in progress")
 	}
-	if g.RoundStarted.IsZero() {
+	if g.TimedRounds.RoundStarted.IsZero() {
 		return false, errors.New("round not started")
 	}
 	_ = g.advanceIfNeededLocked(now)
 	if g.Status != StatusInProgress {
 		return false, nil
 	}
-	if !g.RoundEndedAt.IsZero() {
+	if !g.TimedRounds.RoundEndedAt.IsZero() {
 		return false, nil
 	}
 	if g.RoundWinnerID != "" {
@@ -330,7 +261,7 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 		return false, nil
 	}
 	points := 1
-	halfTime := g.RoundStarted.Add(g.RoundDuration / 2)
+	halfTime := g.TimedRounds.RoundStarted.Add(g.TimedRounds.Duration / 2)
 	if now.Before(halfTime) {
 		points = 2
 	}
@@ -338,7 +269,7 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 	player.Progress = len(round.Word)
 	g.RoundWinnerID = playerID
 	g.RoundSolvedAt = now
-	g.RoundEndedAt = now
+	g.TimedRounds.RoundEndedAt = now
 	return true, nil
 }
 
@@ -346,17 +277,10 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.Status != StatusInProgress || g.RoundStarted.IsZero() {
+	if g.Status != StatusInProgress {
 		return time.Time{}, false
 	}
-	if g.RoundEndedAt.IsZero() {
-		return g.RoundStarted.Add(g.RoundDuration), true
-	}
-	next := g.RoundEndedAt.Add(5 * time.Second)
-	if now.After(next) {
-		return now, true
-	}
-	return next, true
+	return g.TimedRounds.NextWake(now)
 }
 
 // UpdateProgress stores a player's correct letter count for the current round.
@@ -367,7 +291,7 @@ func (g *Game) UpdateProgress(playerID string, correct int, now time.Time) {
 		return
 	}
 	g.advanceIfNeededLocked(now)
-	if g.Status != StatusInProgress || !g.RoundEndedAt.IsZero() {
+	if g.Status != StatusInProgress || !g.TimedRounds.RoundEndedAt.IsZero() {
 		return
 	}
 	round := g.currentRoundDataLocked()
@@ -463,8 +387,8 @@ func (g *Game) Snapshot(now time.Time) Snapshot {
 		}
 	}
 	var nextRoundAt time.Time
-	if !g.RoundEndedAt.IsZero() {
-		nextRoundAt = g.RoundEndedAt.Add(5 * time.Second)
+	if !g.TimedRounds.RoundEndedAt.IsZero() {
+		nextRoundAt = g.TimedRounds.RoundEndedAt.Add(g.TimedRounds.Cooldown)
 	}
 	winnerName := ""
 	if g.Status == StatusFinished {
@@ -477,13 +401,13 @@ func (g *Game) Snapshot(now time.Time) Snapshot {
 	return Snapshot{
 		ID:            g.ID,
 		Status:        g.Status,
-		CurrentRound:  g.CurrentRound,
-		Rounds:        g.Rounds,
-		RoundDuration: g.RoundDuration,
-		RoundStarted:  g.RoundStarted,
+		CurrentRound:  g.TimedRounds.CurrentRound,
+		Rounds:        g.TimedRounds.Rounds,
+		RoundDuration: g.TimedRounds.Duration,
+		RoundStarted:  g.TimedRounds.RoundStarted,
 		RoundData:     g.currentRoundDataLocked(),
 		RoundWinner:   roundWinner,
-		RoundEndedAt:  g.RoundEndedAt,
+		RoundEndedAt:  g.TimedRounds.RoundEndedAt,
 		NextRoundAt:   nextRoundAt,
 		Players:       players,
 		Progress:      progress,

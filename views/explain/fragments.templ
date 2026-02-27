@@ -1,0 +1,147 @@
+package explainviews
+
+import (
+	"fmt"
+	"strconv"
+
+	"dagame/internal/explain/viewmodel"
+)
+
+// LobbyFragment renders the #lobby-actions section.
+templ LobbyFragment(snap viewmodel.SnapData, gameID string) {
+	if snap.ShowStart {
+		<button
+			type="button"
+			class="button is-primary mb-4"
+			data-game-id={ gameID }
+			onclick="fetch('/game/'+this.dataset.gameId+'/start',{method:'POST'})"
+		>Start game</button>
+	} else if snap.Status == "lobby" {
+		<p class="mb-4">
+			Waiting for more players (min { strconv.Itoa(snap.MinPlayers) }).
+			Current: { strconv.Itoa(snap.PlayerCount) }.
+		</p>
+	}
+}
+
+// RoundFragment renders the #round section.
+templ RoundFragment(snap viewmodel.SnapData) {
+	if snap.Status == "lobby" {
+		<div class="notification is-info">Waiting to start.</div>
+	} else {
+		<div class="box">
+			<p>Round { strconv.Itoa(snap.CurrentRound) }/{ strconv.Itoa(snap.Rounds) }</p>
+			<p>Duration: { strconv.Itoa(snap.RoundDurationSec) }s</p>
+			if snap.ExplainerName != "" {
+				<p>Explainer: <strong>{ snap.ExplainerName }</strong></p>
+			}
+			if snap.RoundWinnerName != "" {
+				<p class="has-text-success">{ snap.RoundWinnerName } got it!</p>
+			}
+			if snap.Status == "finished" {
+				<p class="title is-5">Game over. Winner: { snap.WinnerName }</p>
+			}
+		</div>
+	}
+}
+
+// CanvasFragment renders the #canvas section.
+templ CanvasFragment(snap viewmodel.SnapData) {
+	<div class="box">
+		<h3 class="subtitle">Canvas</h3>
+		<div
+			id="canvas-area"
+			class="mb-3"
+			style="min-height:200px;border:1px solid #ccc;position:relative;overflow:hidden;"
+		>
+			for _, item := range snap.Canvas {
+				<span
+					class="canvas-emoji"
+					data-id={ item.ID }
+					data-emoji={ item.Emoji }
+					style={ templ.SafeCSS(fmt.Sprintf("position:absolute;left:%.0fpx;top:%.0fpx;font-size:2rem;cursor:grab;user-select:none;", item.X, item.Y)) }
+				>{ item.Emoji }</span>
+			}
+		</div>
+		if snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
+			<div class="emoji-palette mb-2">
+				for _, em := range snap.RoundEmojis {
+					<button
+						type="button"
+						class="button is-small emoji-btn"
+						draggable="true"
+						data-emoji={ em }
+						style="cursor:grab;font-size:1.25rem;"
+					>{ em }</button>
+				}
+			</div>
+			<p class="help">Drag emojis from the palette onto the canvas. Drag placed emojis to reposition.</p>
+		}
+	</div>
+}
+
+// WordHintFragment renders the #wordhint section.
+// The gameID is passed separately because fragments are also rendered in SSE handlers.
+templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
+	<div class="box">
+		<h3 class="subtitle">Word</h3>
+		<p class="is-size-4">
+			if snap.IsExplainer {
+				<strong>{ snap.Word }</strong>
+			} else {
+				<span class="word-display">{ snap.RevealedWord }</span>
+				({ strconv.Itoa(snap.WordLength) } letters)
+			}
+		</p>
+		if !snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
+			<form
+				data-game-id={ gameID }
+				onsubmit="(function(f){var i=f.querySelector('input[name=guess]');var g=i.value.trim();if(!g)return false;fetch('/game/'+f.dataset.gameId+'/guess',{method:'POST',body:new URLSearchParams({guess:g})}).then(function(){i.value='';i.focus();});return false;})(this);return false;"
+			>
+				<div class="field has-addons">
+					<div class="control">
+						<input class="input" name="guess" placeholder="Your guess" autocomplete="off"/>
+					</div>
+					<div class="control">
+						<button type="submit" class="button is-primary">Guess</button>
+					</div>
+				</div>
+			</form>
+		}
+	</div>
+}
+
+// PlayersFragment renders the #players section.
+templ PlayersFragment(snap viewmodel.SnapData, currentPlayerID string) {
+	<div class="box">
+		<h3 class="subtitle">Players</h3>
+		<ul>
+			for _, p := range snap.Players {
+				<li>
+					if p.ID == currentPlayerID {
+						<strong>{ p.Name }</strong>
+					} else {
+						{ p.Name }
+					}
+					if p.IsExplainer {
+						(explainer)
+					} else {
+						(guesser)
+					}
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// ScoresFragment renders the #scores section.
+templ ScoresFragment(snap viewmodel.SnapData) {
+	<div class="box">
+		<h3 class="subtitle">Scores</h3>
+		<ol>
+			for _, s := range snap.Scores {
+				<li>{ s.Name }: { strconv.Itoa(s.Points) }</li>
+			}
+		</ol>
+	</div>
+}

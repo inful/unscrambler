@@ -1,0 +1,54 @@
+package explainviews
+
+templ HomePage() {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Explain</title>
+			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
+		</head>
+		<body>
+			<section class="section">
+				<div class="container">
+					<div class="columns is-centered">
+						<div class="column is-half">
+							<h1 class="title is-2">Explain</h1>
+							<p class="subtitle">One player explains a word with emojis; others guess.</p>
+							<div class="card">
+								<div class="card-content">
+									<form method="POST" action="/games">
+										<div class="field">
+											<label class="label" for="rounds">Rounds</label>
+											<div class="control">
+												<input class="input" type="number" id="rounds" name="rounds" value="3" min="1" max="10" required/>
+											</div>
+										</div>
+										<div class="field">
+											<label class="label" for="duration">Round duration (seconds)</label>
+											<div class="control">
+												<input class="input" type="number" id="duration" name="duration" value="90" min="30" max="300" required/>
+											</div>
+										</div>
+										<div class="field">
+											<label class="label" for="emojis">Emojis per round</label>
+											<div class="control">
+												<input class="input" type="number" id="emojis" name="emojis" value="8" min="4" max="20" required/>
+											</div>
+										</div>
+										<div class="field">
+											<div class="control">
+												<button type="submit" class="button is-primary">Create game</button>
+											</div>
+										</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+		</body>
+	</html>
+}
