@@ -478,7 +478,7 @@ func WordHintFragment(snap viewmodel.SnapData, gameID string) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				} else if ch == "_" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<li class=\"word-letter is-hidden\"></li>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<li class=\"word-letter is-blank\"></li>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
