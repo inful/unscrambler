@@ -4,6 +4,7 @@ import (
 	cryptoRand "crypto/rand"
 	"encoding/base32"
 	"errors"
+	"math"
 	"math/rand"
 	"sort"
 	"strings"
@@ -398,18 +399,31 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 	if normalized != g.Word {
 		return false, nil
 	}
-	// Award points: more time remaining = more points. Max 2 points each if guessed in first half, 1 in second half.
+	// Award points based on remaining time.
+	//
+	// Guesser:  1–10 pts  (ceil(10 * remaining/duration)) — rewards fast guessing.
+	// Explainer: 1–5 pts  (ceil(5  * remaining/duration)) — rewards clear explanations,
+	//            but always less than the guesser earns, so deliberately explaining
+	//            poorly to deny an opponent points is never a winning strategy.
 	elapsed := now.Sub(g.TimedRounds.RoundStarted)
-	half := g.TimedRounds.Duration / 2
-	points := 1
-	if elapsed < half {
-		points = 2
+	remaining := g.TimedRounds.Duration - elapsed
+	if remaining < 0 {
+		remaining = 0
+	}
+	fraction := float64(remaining) / float64(g.TimedRounds.Duration)
+	guesserPoints := int(math.Ceil(10 * fraction))
+	if guesserPoints < 1 {
+		guesserPoints = 1
+	}
+	explainerPoints := int(math.Ceil(5 * fraction))
+	if explainerPoints < 1 {
+		explainerPoints = 1
 	}
 	if guesser, ok := g.Players[playerID]; ok {
-		guesser.Points += points
+		guesser.Points += guesserPoints
 	}
 	if explainer, ok := g.Players[g.ExplainerID]; ok {
-		explainer.Points += points
+		explainer.Points += explainerPoints
 	}
 	g.RoundWinnerID = playerID
 	g.RoundSolvedAt = now
