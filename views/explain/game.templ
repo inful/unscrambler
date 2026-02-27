@@ -48,23 +48,27 @@ templ GamePage(data viewmodel.GamePageData) {
 							</div>
 						</div>
 					} else {
-						// Invite URL bar
-						<div class="notification is-light invite-url mb-4">
-							<div class="field has-addons">
-								<div class="control is-expanded">
-									<input id="invite-input" class="input is-small" type="text" value={ data.InviteURL } readonly/>
-								</div>
-								<div class="control">
-									<button
-										id="copy-btn"
-										class="button is-info is-small"
-										type="button"
-										data-url={ data.InviteURL }
-										onclick="(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)"
-									>Copy</button>
+						// Invite URL bar — visible in lobby and after the game ends
+						if data.Snap.Status == "lobby" || data.Snap.Status == "finished" {
+							<div id="invite-bar" class="notification is-light invite-url mb-4">
+								<div class="field has-addons">
+									<div class="control is-expanded">
+										<input id="invite-input" class="input is-small" type="text" value={ data.InviteURL } readonly/>
+									</div>
+									<div class="control">
+										<button
+											id="copy-btn"
+											class="button is-info is-small"
+											type="button"
+											data-url={ data.InviteURL }
+											onclick="(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)"
+										>Copy</button>
+									</div>
 								</div>
 							</div>
-						</div>
+						} else {
+							<div id="invite-bar"></div>
+						}
 						<div class="columns">
 							// ── Main column ────────────────────────────────────────────────
 							<div class="column is-two-thirds">
@@ -139,7 +143,14 @@ initCountdown();
 
 var src=new EventSource("/game/"+gid+"/stream");
 src.addEventListener("lobby",   function(e){ var el=document.getElementById("lobby-actions"); if(el) el.innerHTML=e.data; });
-src.addEventListener("round",   function(e){ cleanupCountdown(); var el=document.getElementById("round"); if(el) el.innerHTML=e.data; initCountdown(); });
+src.addEventListener("round",   function(e){
+  cleanupCountdown();
+  var el=document.getElementById("round");
+  if(el) el.innerHTML=e.data;
+  initCountdown();
+  var bar=document.getElementById("invite-bar");
+  if(bar){ bar.style.display=el&&el.querySelector("[data-round-timer]")?"none":""; }
+});
 src.addEventListener("canvas",  function(e){ if(_dragging) return; var el=document.getElementById("canvas"); if(el) el.innerHTML=e.data; });
 src.addEventListener("wordhint",function(e){ var el=document.getElementById("wordhint");      if(el) el.innerHTML=e.data; });
 src.addEventListener("players", function(e){ var el=document.getElementById("players");       if(el) el.innerHTML=e.data; });
