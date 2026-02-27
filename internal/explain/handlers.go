@@ -532,34 +532,88 @@ func renderGamePage(w http.ResponseWriter, data map[string]interface{}) {
 		buf.WriteString(renderScoresFragmentHTML(snap))
 		buf.WriteString(`</div>`)
 
-		// Single script block: SSE + canvas interaction. EventSource always open (like cmd/web).
+		// Single script block: SSE + canvas drag-and-drop interaction.
 		buf.WriteString(`<script>
 (function(){
 var gid="` + gameID + `";
+var _dragging=false; // suppress SSE canvas updates while dragging to avoid flicker
 
-// SSE: update sections in place — no navigation needed.
+// SSE: update sections in place.
 var src=new EventSource("/game/"+gid+"/stream");
 src.addEventListener("lobby",   function(e){ var el=document.getElementById("lobby-actions"); if(el) el.innerHTML=e.data; });
 src.addEventListener("round",   function(e){ var el=document.getElementById("round");         if(el) el.innerHTML=e.data; });
-src.addEventListener("canvas",  function(e){ var el=document.getElementById("canvas");        if(el) el.innerHTML=e.data; });
+src.addEventListener("canvas",  function(e){ if(_dragging) return; var el=document.getElementById("canvas"); if(el) el.innerHTML=e.data; });
 src.addEventListener("wordhint",function(e){ var el=document.getElementById("wordhint");      if(el) el.innerHTML=e.data; });
 src.addEventListener("players", function(e){ var el=document.getElementById("players");       if(el) el.innerHTML=e.data; });
 src.addEventListener("scores",  function(e){ var el=document.getElementById("scores");        if(el) el.innerHTML=e.data; });
 
-// Canvas interaction (explainer only — button appears via SSE when game starts).
-document.body.addEventListener("click",function(e){
+function collectItems(area){
+  var items=[];
+  area.querySelectorAll(".canvas-emoji").forEach(function(el){
+    items.push({ID:el.dataset.id,Emoji:el.dataset.emoji,X:parseFloat(el.style.left)||0,Y:parseFloat(el.style.top)||0});
+  });
+  return items;
+}
+function saveCanvas(items){
+  fetch("/game/"+gid+"/canvas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(items)});
+}
+
+// ── Drag palette emoji onto canvas (HTML5 drag-and-drop) ─────────────────────
+document.body.addEventListener("dragstart",function(e){
   var btn=e.target.closest(".emoji-btn");
-  if(btn){ e.preventDefault(); document.body._emoji=btn.dataset.emoji; return; }
+  if(!btn) return;
+  e.dataTransfer.setData("text/plain",btn.dataset.emoji);
+  e.dataTransfer.effectAllowed="copy";
+});
+document.body.addEventListener("dragover",function(e){
+  if(e.target.closest("#canvas-area")){ e.preventDefault(); e.dataTransfer.dropEffect="copy"; }
+});
+document.body.addEventListener("drop",function(e){
   var area=e.target.closest("#canvas-area");
-  if(area && document.body._emoji){
-    var rect=area.getBoundingClientRect();
-    var items=[];
-    area.querySelectorAll(".canvas-emoji").forEach(function(el){
-      items.push({ID:el.dataset.id,Emoji:el.dataset.emoji,X:parseFloat(el.style.left)||0,Y:parseFloat(el.style.top)||0});
-    });
-    items.push({ID:"e"+Date.now()+"-"+Math.random().toString(36).slice(2),Emoji:document.body._emoji,X:e.clientX-rect.left,Y:e.clientY-rect.top});
-    fetch("/game/"+gid+"/canvas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(items)});
-  }
+  if(!area) return;
+  var emoji=e.dataTransfer.getData("text/plain");
+  if(!emoji) return;
+  e.preventDefault();
+  var rect=area.getBoundingClientRect();
+  var x=e.clientX-rect.left-16;
+  var y=e.clientY-rect.top-16;
+  var id="e"+Date.now()+"-"+Math.random().toString(36).slice(2);
+  // Optimistic local update
+  var span=document.createElement("span");
+  span.className="canvas-emoji";
+  span.dataset.id=id; span.dataset.emoji=emoji;
+  span.style.cssText="position:absolute;left:"+x+"px;top:"+y+"px;font-size:2rem;cursor:grab;user-select:none;";
+  span.textContent=emoji;
+  area.appendChild(span);
+  var items=collectItems(area);
+  saveCanvas(items);
+});
+
+// ── Drag existing canvas emoji to reposition (mouse events) ──────────────────
+var _drag=null;
+document.body.addEventListener("mousedown",function(e){
+  var el=e.target.closest(".canvas-emoji");
+  if(!el) return;
+  var area=el.closest("#canvas-area");
+  if(!area) return;
+  e.preventDefault();
+  _dragging=true;
+  var er=el.getBoundingClientRect();
+  _drag={el:el,area:area,ox:e.clientX-er.left,oy:e.clientY-er.top};
+  el.style.zIndex="100"; el.style.cursor="grabbing";
+});
+document.addEventListener("mousemove",function(e){
+  if(!_drag) return;
+  var ar=_drag.area.getBoundingClientRect();
+  _drag.el.style.left=(e.clientX-ar.left-_drag.ox)+"px";
+  _drag.el.style.top =(e.clientY-ar.top -_drag.oy)+"px";
+});
+document.addEventListener("mouseup",function(){
+  if(!_drag) return;
+  _drag.el.style.zIndex=""; _drag.el.style.cursor="grab";
+  var items=collectItems(_drag.area);
+  _drag=null; _dragging=false;
+  saveCanvas(items);
 });
 })();
 </script>`)
@@ -592,17 +646,17 @@ func renderRoundFragmentHTML(snap Snapshot, gameID string) string {
 
 func renderCanvasFragmentHTML(snap Snapshot) string {
 	var b bytes.Buffer
-	b.WriteString(`<div class="box"><h3 class="subtitle">Canvas</h3><div id="canvas-area" class="mb-3" style="min-height:200px;border:1px solid #ccc;position:relative;">`)
+	b.WriteString(`<div class="box"><h3 class="subtitle">Canvas</h3><div id="canvas-area" class="mb-3" style="min-height:200px;border:1px solid #ccc;position:relative;overflow:hidden;">`)
 	for _, item := range snap.Canvas {
-		b.WriteString(`<span class="canvas-emoji" data-id="` + item.ID + `" data-emoji="` + item.Emoji + `" style="position:absolute;left:` + strconv.FormatFloat(item.X, 'f', 0, 64) + `px;top:` + strconv.FormatFloat(item.Y, 'f', 0, 64) + `px;font-size:2rem;">` + item.Emoji + `</span>`)
+		b.WriteString(`<span class="canvas-emoji" data-id="` + item.ID + `" data-emoji="` + item.Emoji + `" style="position:absolute;left:` + strconv.FormatFloat(item.X, 'f', 0, 64) + `px;top:` + strconv.FormatFloat(item.Y, 'f', 0, 64) + `px;font-size:2rem;cursor:grab;user-select:none;">` + item.Emoji + `</span>`)
 	}
 	b.WriteString(`</div>`)
 	if snap.IsExplainer && snap.Status == StatusInProgress && snap.RoundWinnerName == "" {
 		b.WriteString(`<div class="emoji-palette mb-2">`)
 		for _, em := range snap.RoundEmojis {
-			b.WriteString(`<button type="button" class="button is-small emoji-btn" data-emoji="` + em + `">` + em + `</button>`)
+			b.WriteString(`<button type="button" class="button is-small emoji-btn" draggable="true" data-emoji="` + em + `" style="cursor:grab;font-size:1.25rem;">` + em + `</button>`)
 		}
-		b.WriteString(`</div><p class="help">Click palette then canvas to place. Drag to move.</p>`)
+		b.WriteString(`</div><p class="help">Drag emojis from the palette onto the canvas. Drag placed emojis to reposition.</p>`)
 	}
 	b.WriteString(`</div>`)
 	return b.String()
