@@ -130,7 +130,7 @@ templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
 						if ch == " " {
 							<li class="word-letter is-space"></li>
 						} else if ch == "_" {
-							<li class="word-letter is-blank"></li>
+							<li class="word-letter is-blank">_</li>
 						} else {
 							<li class="word-letter">{ ch }</li>
 						}
