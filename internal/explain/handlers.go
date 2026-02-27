@@ -469,11 +469,20 @@ func snapToVM(snap Snapshot, showStart bool, playerCount int) viewmodel.SnapData
 	for i, c := range snap.Canvas {
 		canvas[i] = viewmodel.CanvasItem{ID: c.ID, Emoji: c.Emoji, X: c.X, Y: c.Y}
 	}
+	var roundStartedMs, nextRoundAtMs int64
+	if !snap.RoundStarted.IsZero() {
+		roundStartedMs = snap.RoundStarted.UnixMilli()
+	}
+	if !snap.NextRoundAt.IsZero() {
+		nextRoundAtMs = snap.NextRoundAt.UnixMilli()
+	}
 	return viewmodel.SnapData{
 		Status:           snap.Status,
 		CurrentRound:     snap.CurrentRound,
 		Rounds:           snap.Rounds,
 		RoundDurationSec: int(snap.RoundDuration.Seconds()),
+		RoundStartedMs:   roundStartedMs,
+		NextRoundAtMs:    nextRoundAtMs,
 		ExplainerName:    snap.ExplainerName,
 		RoundWinnerName:  snap.RoundWinnerName,
 		WinnerName:       snap.WinnerName,

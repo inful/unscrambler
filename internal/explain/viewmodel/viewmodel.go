@@ -32,6 +32,8 @@ type SnapData struct {
 	CurrentRound     int
 	Rounds           int
 	RoundDurationSec int
+	RoundStartedMs   int64 // Unix milliseconds; drives the client-side countdown
+	NextRoundAtMs    int64 // Unix milliseconds; drives the "next round in" countdown
 	ExplainerName    string
 	RoundWinnerName  string
 	WinnerName       string

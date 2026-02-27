@@ -73,10 +73,35 @@ templ GamePage(data viewmodel.GamePageData) {
 var root=document.getElementById('game-root');
 var gid=root.dataset.gameId;
 var _dragging=false;
+var _timerInterval=null;
+
+function cleanupCountdown(){
+  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }
+}
+function initCountdown(){
+  cleanupCountdown();
+  var el=document.querySelector('[data-round-timer]');
+  if(!el) return;
+  var startMs=Number(el.dataset.startMs||'0');
+  var durationSec=Number(el.dataset.durationSec||'0');
+  var nextRoundMs=Number(el.dataset.nextRoundMs||'0');
+  if(!startMs||!durationSec) return;
+  var endMs=startMs+durationSec*1000;
+  var timerEl=el.querySelector('[data-timer]');
+  var nextTimerEl=el.querySelector('[data-next-timer]');
+  var tick=function(){
+    var now=Date.now();
+    if(timerEl){ timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+'s'; }
+    if(nextTimerEl&&nextRoundMs){ nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+'s'; }
+  };
+  tick();
+  _timerInterval=setInterval(tick,1000);
+}
+initCountdown();
 
 var src=new EventSource("/game/"+gid+"/stream");
 src.addEventListener("lobby",   function(e){ var el=document.getElementById("lobby-actions"); if(el) el.innerHTML=e.data; });
-src.addEventListener("round",   function(e){ var el=document.getElementById("round");         if(el) el.innerHTML=e.data; });
+src.addEventListener("round",   function(e){ cleanupCountdown(); var el=document.getElementById("round"); if(el) el.innerHTML=e.data; initCountdown(); });
 src.addEventListener("canvas",  function(e){ if(_dragging) return; var el=document.getElementById("canvas"); if(el) el.innerHTML=e.data; });
 src.addEventListener("wordhint",function(e){ var el=document.getElementById("wordhint");      if(el) el.innerHTML=e.data; });
 src.addEventListener("players", function(e){ var el=document.getElementById("players");       if(el) el.innerHTML=e.data; });
