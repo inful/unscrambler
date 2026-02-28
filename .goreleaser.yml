@@ -1,6 +1,6 @@
 version: 2
 
-project_name: unscrambler
+project_name: dagame
 
 builds:
   - id: unscrambler
@@ -14,31 +14,33 @@ builds:
     env:
       - CGO_ENABLED=0
 
-dockers:
-  - image_templates:
-      - ghcr.io/inful/unscrambler:{{ .Tag }}-amd64
-    use: buildx
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - --platform=linux/amd64
-      - --pull
-    goos: linux
-    goarch: amd64
-  - image_templates:
-      - ghcr.io/inful/unscrambler:{{ .Tag }}-arm64
-    use: buildx
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - --platform=linux/arm64
-      - --pull
-    goos: linux
-    goarch: arm64
+  - id: explainer
+    main: ./cmd/explain
+    binary: explainer
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
 
-docker_manifests:
-  - name_template: ghcr.io/inful/unscrambler:{{ .Tag }}
-    image_templates:
-      - ghcr.io/inful/unscrambler:{{ .Tag }}-amd64
-      - ghcr.io/inful/unscrambler:{{ .Tag }}-arm64
+dockers_v2:
+  - id: docker-unscrambler
+    ids: [unscrambler]
+    images:
+      - ghcr.io/inful/unscrambler
+    tags:
+      - "{{ .Tag }}"
+    dockerfile: Dockerfile
+
+  - id: docker-explainer
+    ids: [explainer]
+    images:
+      - ghcr.io/inful/explainer
+    tags:
+      - "{{ .Tag }}"
+    dockerfile: Dockerfile.explainer
 
 archives:
   - formats: [tar.gz]

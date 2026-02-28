@@ -4,10 +4,10 @@ ARG TARGETPLATFORM
 
 WORKDIR /app
 
-COPY $TARGETPLATFORM/unscrambler /app/unscrambler
+COPY $TARGETPLATFORM/explainer /app/explainer
 
 EXPOSE 8080
 
 USER nonroot:nonroot
 
-ENTRYPOINT ["/app/unscrambler"]
+ENTRYPOINT ["/app/explainer"]
