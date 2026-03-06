@@ -85,21 +85,14 @@ func (s *Store) EnsureRoundLoop(id string, _ *Game) {
 		}
 		return room.State
 	}
+	advanceTick := realtime.TickFromRoundLoopState[*Game]([]string{"round", "scores", "players", "wordhint", "canvas"})
 	tick := func(state *Game, now time.Time) (time.Time, []string, bool) {
 		if state == nil {
 			return time.Time{}, nil, true
 		}
-		next, ok := state.NextTimer(now)
-		if !ok {
-			return time.Time{}, nil, true
-		}
-		advanced := state.AdvanceIfNeeded(now)
-		if advanced {
-			next2, ok2 := state.NextTimer(now)
-			if !ok2 {
-				return time.Time{}, nil, true
-			}
-			return next2, []string{"round", "scores", "players", "wordhint", "canvas"}, false
+		next, events, stop := advanceTick(state, now)
+		if stop || len(events) > 0 {
+			return next, events, stop
 		}
 		// Publish wordhint when letters are revealed (50%, 75%) even if round didn't advance
 		if state.RevealLettersIfNeeded(now) {
@@ -115,6 +108,9 @@ func (s *Store) Wake(id string) {
 }
 
 // Game holds state for one explain game session.
+// It implements realtime.RoundLoopState for EnsureRoundLoop.
+var _ realtime.RoundLoopState = (*Game)(nil)
+
 type Game struct {
 	mu          sync.Mutex
 	ID          string

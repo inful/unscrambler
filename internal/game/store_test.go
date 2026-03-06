@@ -5,7 +5,11 @@ import (
 	"time"
 
 	"dagame/pkg/gamecommon"
+	"dagame/pkg/realtime"
 )
+
+// Ensure *Game implements the round-loop interface used by EnsureRoundLoop.
+var _ realtime.RoundLoopState = (*Game)(nil)
 
 func TestNewStore(t *testing.T) {
 	s := NewStore()

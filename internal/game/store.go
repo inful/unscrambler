@@ -57,25 +57,14 @@ func (s *Store) EnsureRoundLoop(id string, _ *Game) {
 		}
 		return room.State
 	}
-	tick := func(state *Game, now time.Time) (time.Time, []string, bool) {
+	tick := realtime.TickFromRoundLoopState[*Game]([]string{"round", "scores", "players"})
+	tickWithNilCheck := func(state *Game, now time.Time) (time.Time, []string, bool) {
 		if state == nil {
 			return time.Time{}, nil, true
 		}
-		next, ok := state.NextTimer(now)
-		if !ok {
-			return time.Time{}, nil, true
-		}
-		advanced := state.AdvanceIfNeeded(now)
-		if advanced {
-			next2, ok2 := state.NextTimer(now)
-			if !ok2 {
-				return time.Time{}, nil, true
-			}
-			return next2, []string{"round", "scores", "players"}, false
-		}
-		return next, nil, false
+		return tick(state, now)
 	}
-	s.r.RunLoop(id, getState, tick)
+	s.r.RunLoop(id, getState, tickWithNilCheck)
 }
 
 // WakeRoundLoop unblocks the round loop so it recomputes (e.g. after early round end).
