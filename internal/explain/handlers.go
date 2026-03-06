@@ -34,19 +34,22 @@ func NewHandler(store *Store) *Handler {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/", h.home)
 	r.Post("/games", h.createGame)
+	gameIDFromRoute := func(r *http.Request) string { return chi.URLParam(r, "id") }
+	cookieName := func(gameID string) string { return cookiePrefix + "_" + gameID }
+	withGame := httputil.WithGame(h.store, cookieName, gameIDFromRoute)
 	r.Route("/game/{id}", func(r chi.Router) {
-		r.Get("/", h.gamePage)
-		r.Get("/lobby", h.lobbyFragment)
-		r.Post("/join", h.joinGame)
-		r.Post("/start", h.startGame)
-		r.Get("/stream", h.stream)
-		r.Get("/round", h.roundFragment)
-		r.Get("/canvas", h.canvasFragment)
-		r.Get("/players", h.playersFragment)
-		r.Get("/scores", h.scoresFragment)
-		r.Get("/wordhint", h.wordHintFragment)
-		r.Post("/canvas", h.updateCanvas)
-		r.Post("/guess", h.submitGuess)
+		r.Get("/", withGame(h.gamePage))
+		r.Get("/lobby", withGame(h.lobbyFragment))
+		r.Post("/join", withGame(h.joinGame))
+		r.Post("/start", withGame(h.startGame))
+		r.Get("/stream", withGame(h.stream))
+		r.Get("/round", withGame(h.roundFragment))
+		r.Get("/canvas", withGame(h.canvasFragment))
+		r.Get("/players", withGame(h.playersFragment))
+		r.Get("/scores", withGame(h.scoresFragment))
+		r.Get("/wordhint", withGame(h.wordHintFragment))
+		r.Post("/canvas", withGame(h.updateCanvas))
+		r.Post("/guess", withGame(h.submitGuess))
 	})
 }
 
@@ -84,14 +87,8 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/game/"+g.ID, http.StatusSeeOther)
 }
 
-func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	playerName, hasPlayer := "", false
 	if playerID != "" {
 		playerName, hasPlayer = g.PlayerName(playerID)
@@ -111,14 +108,8 @@ func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request) {
 	renderPage(w, r.Context(), explainviews.GamePage(data))
 }
 
-func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	playerName, hasPlayer := g.PlayerName(playerID)
 	isOwner := g.IsOwner(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
@@ -128,13 +119,8 @@ func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request) {
 	renderFragment(w, r.Context(), explainviews.LobbyFragment(vm, gameID))
 }
 
-func (h *Handler) joinGame(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+func (h *Handler) joinGame(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
@@ -154,14 +140,8 @@ func (h *Handler) joinGame(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 }
 
-func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) startGame(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	if playerID == "" {
 		log.Printf("[explain] start: no player cookie for game %s", gameID)
 		http.Error(w, "not a player", http.StatusForbidden)
@@ -188,19 +168,13 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+func (h *Handler) stream(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	playerName, _ := g.PlayerName(playerID)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -267,79 +241,39 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) roundFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) roundFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.RoundFragment(snapToVM(snap, false, 0, pname)))
 }
 
-func (h *Handler) canvasFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) canvasFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.CanvasFragment(snapToVM(snap, false, 0, pname)))
 }
 
-func (h *Handler) wordHintFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) wordHintFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.WordHintFragment(snapToVM(snap, false, 0, pname), gameID))
 }
 
-func (h *Handler) playersFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) playersFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.PlayersFragment(snapToVM(snap, false, 0, pname), playerID))
 }
 
-func (h *Handler) scoresFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) scoresFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.ScoresFragment(snapToVM(snap, false, 0, pname)))
 }
 
-func (h *Handler) updateCanvas(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) updateCanvas(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	if playerID == "" {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -355,14 +289,8 @@ func (h *Handler) updateCanvas(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) submitGuess(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	g, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
+func (h *Handler) submitGuess(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
+	gameID := g.ID
 	if playerID == "" {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return

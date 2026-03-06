@@ -169,3 +169,53 @@ func TestSetPlayerCookie(t *testing.T) {
 		t.Error("cookie Expires should be set (e.g. 24h)")
 	}
 }
+
+func TestWithGame_NotFoundWhenGameMissing(t *testing.T) {
+	store := &mockGameStore[string]{games: map[string]string{}}
+	getGameID := func(r *http.Request) string { return r.URL.Query().Get("id") }
+	cookieName := func(gameID string) string { return "player_" + gameID }
+	handler := WithGame(store, cookieName, getGameID)(func(w http.ResponseWriter, r *http.Request, g string, playerID string) {
+		t.Error("next should not be called when game missing")
+	})
+	req := httptest.NewRequest(http.MethodGet, "/?id=missing", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestWithGame_CallsNextWithGameAndPlayerID(t *testing.T) {
+	store := &mockGameStore[string]{games: map[string]string{"g1": "game1"}}
+	getGameID := func(r *http.Request) string { return r.URL.Query().Get("id") }
+	cookieName := func(gameID string) string { return "p_" + gameID }
+	var gotGame string
+	var gotPlayerID string
+	handler := WithGame(store, cookieName, getGameID)(func(w http.ResponseWriter, r *http.Request, g string, playerID string) {
+		gotGame = g
+		gotPlayerID = playerID
+		w.WriteHeader(http.StatusOK)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/?id=g1", nil)
+	req.AddCookie(&http.Cookie{Name: "p_g1", Value: "pid1"})
+	w := httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", w.Code)
+	}
+	if gotGame != "game1" {
+		t.Errorf("game = %q, want game1", gotGame)
+	}
+	if gotPlayerID != "pid1" {
+		t.Errorf("playerID = %q, want pid1", gotPlayerID)
+	}
+}
+
+type mockGameStore[G any] struct {
+	games map[string]G
+}
+
+func (m *mockGameStore[G]) GetGame(id string) (G, bool) {
+	g, ok := m.games[id]
+	return g, ok
+}

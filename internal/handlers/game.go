@@ -31,30 +31,25 @@ func NewGameHandler(store *game.Store) *GameHandler {
 
 // RegisterRoutes wires game session endpoints.
 func (h *GameHandler) RegisterRoutes(r chi.Router) {
+	gameIDFromRoute := func(r *http.Request) string { return chi.URLParam(r, "id") }
+	withGame := httputil.WithGame(h.store, playerCookieName, gameIDFromRoute)
 	r.Route("/game/{id}", func(r chi.Router) {
-		r.Get("/", h.gamePage)
-		r.Post("/join", h.joinGame)
-		r.Post("/start", h.startGame)
-		r.Post("/restart", h.restartGame)
-		r.Get("/round", h.roundFragment)
-		r.Get("/players", h.playersFragment)
-		r.Get("/scores", h.scoresFragment)
-		r.Get("/stream", h.stream)
-		r.Post("/progress", h.progressUpdate)
-		r.Post("/guess", h.submitGuess)
+		r.Get("/", withGame(h.gamePage))
+		r.Post("/join", withGame(h.joinGame))
+		r.Post("/start", withGame(h.startGame))
+		r.Post("/restart", withGame(h.restartGame))
+		r.Get("/round", withGame(h.roundFragment))
+		r.Get("/players", withGame(h.playersFragment))
+		r.Get("/scores", withGame(h.scoresFragment))
+		r.Get("/stream", withGame(h.stream))
+		r.Post("/progress", withGame(h.progressUpdate))
+		r.Post("/guess", withGame(h.submitGuess))
 	})
 }
 
-func (h *GameHandler) gamePage(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-
-	playerName, hasPlayer := h.findPlayerName(r, instance)
-	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
+func (h *GameHandler) gamePage(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
+	playerName, hasPlayer := h.findPlayerName(instance, playerID)
 	isOwner := instance.IsOwner(playerID)
 	inviteURL := httputil.BuildInviteURL(r, "/game/", gameID)
 	snapshot := instance.Snapshot(time.Now().UTC())
@@ -85,13 +80,8 @@ func (h *GameHandler) gamePage(w http.ResponseWriter, r *http.Request) {
 	render(w, r, pages.GamePage(data))
 }
 
-func (h *GameHandler) joinGame(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+func (h *GameHandler) joinGame(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
@@ -112,14 +102,8 @@ func (h *GameHandler) joinGame(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 }
 
-func (h *GameHandler) startGame(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
+func (h *GameHandler) startGame(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
 	if !instance.IsOwner(playerID) {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return
@@ -132,14 +116,8 @@ func (h *GameHandler) startGame(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 }
 
-func (h *GameHandler) restartGame(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
+func (h *GameHandler) restartGame(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
 	if !instance.IsOwner(playerID) {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return
@@ -152,14 +130,8 @@ func (h *GameHandler) restartGame(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 }
 
-func (h *GameHandler) roundFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-
+func (h *GameHandler) roundFragment(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
 	now := time.Now().UTC()
 	snapshot := instance.Snapshot(now)
 	data := buildRoundFragment(gameID, snapshot)
@@ -167,36 +139,23 @@ func (h *GameHandler) roundFragment(w http.ResponseWriter, r *http.Request) {
 	render(w, r, components.RoundFragment(data))
 }
 
-func (h *GameHandler) scoresFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-
-	playerName, _ := h.findPlayerName(r, instance)
+func (h *GameHandler) scoresFragment(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
+	playerName, _ := h.findPlayerName(instance, playerID)
 	snapshot := instance.Snapshot(time.Now().UTC())
 	data := viewmodel.ScoresFragment{
 		GameID:     gameID,
 		Scores:     toScoreEntries(snapshot.Scores),
 		WinnerName: snapshot.WinnerName,
 		Status:     snapshot.Status,
-		IsOwner:    instance.IsOwner(httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))),
+		IsOwner:    instance.IsOwner(playerID),
 		PlayerName: playerName,
 	}
 	render(w, r, components.ScoresFragment(data))
 }
 
-func (h *GameHandler) playersFragment(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-
-	playerName, _ := h.findPlayerName(r, instance)
+func (h *GameHandler) playersFragment(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	playerName, _ := h.findPlayerName(instance, playerID)
 	snapshot := instance.Snapshot(time.Now().UTC())
 	data := viewmodel.PlayersFragment{
 		Players:    toPlayerProgress(snapshot.Progress, playerName),
@@ -206,14 +165,8 @@ func (h *GameHandler) playersFragment(w http.ResponseWriter, r *http.Request) {
 	render(w, r, components.PlayersFragment(data))
 }
 
-func (h *GameHandler) submitGuess(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
+func (h *GameHandler) submitGuess(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
 	if playerID == "" {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return
@@ -243,14 +196,8 @@ func (h *GameHandler) submitGuess(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 }
 
-func (h *GameHandler) progressUpdate(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
+func (h *GameHandler) progressUpdate(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
 	if playerID == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -270,13 +217,8 @@ func (h *GameHandler) progressUpdate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
-	gameID := chi.URLParam(r, "id")
-	instance, ok := h.store.GetGame(gameID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
+	gameID := instance.ID
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
@@ -288,8 +230,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
-	playerName, _ := h.findPlayerName(r, instance)
+	playerName, _ := h.findPlayerName(instance, playerID)
 
 	hub := h.store.Broadcaster(gameID)
 	sub := hub.Subscribe()
@@ -349,8 +290,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *GameHandler) findPlayerName(r *http.Request, instance *game.Game) (string, bool) {
-	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(instance.ID))
+func (h *GameHandler) findPlayerName(instance *game.Game, playerID string) (string, bool) {
 	if playerID == "" {
 		return "", false
 	}

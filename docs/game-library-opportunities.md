@@ -14,7 +14,7 @@ This doc outlines refactors that would make it easier to add new games similar t
 | Status | `pkg/gamecommon` | StatusLobby, StatusInProgress, StatusFinished |
 | Realtime | `pkg/realtime` | RoomStore[T], GameStore[G], Broadcaster, TimedRounds, RunLoop, Wake |
 
-Each new game still has to: implement its own Store (wrapping RoomStore), duplicate EnsureRoundLoop/tick logic, repeat handler patterns (get game → 404 → cookie → snapshot → render), and reimplement the SSE stream loop.
+Each new game still has to: implement CreateGame (and optionally custom EnsureRoundLoop), and reimplement the SSE stream loop. Handler lookup (get game → 404 → cookie) is handled by httputil.WithGame.
 
 ---
 

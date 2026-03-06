@@ -66,3 +66,33 @@ func SetPlayerCookie(w http.ResponseWriter, cookieName, playerID string) {
 		Expires:  time.Now().Add(24 * time.Hour),
 	})
 }
+
+// GameGetter is implemented by stores that can look up a game by ID.
+type GameGetter[G any] interface {
+	GetGame(id string) (G, bool)
+}
+
+// GameHandler is the signature for handlers that receive the resolved game and player ID.
+type GameHandler[G any] func(w http.ResponseWriter, r *http.Request, g G, playerID string)
+
+// WithGame returns a middleware that resolves the game and player ID from the request,
+// returns 404 if the game is missing, then calls next with (w, r, game, playerID).
+// getGameID extracts the game ID from r (e.g. from the route, such as chi.URLParam(r, "id")).
+func WithGame[G any](store GameGetter[G], cookieName func(gameID string) string, getGameID func(*http.Request) string) func(next GameHandler[G]) http.HandlerFunc {
+	return func(next GameHandler[G]) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			gameID := getGameID(r)
+			if gameID == "" {
+				http.NotFound(w, r)
+				return
+			}
+			g, ok := store.GetGame(gameID)
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			playerID := GetPlayerIDFromCookie(r, cookieName(gameID))
+			next(w, r, g, playerID)
+		}
+	}
+}
