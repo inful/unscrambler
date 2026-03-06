@@ -2,10 +2,11 @@ package game
 
 import (
 	"embed"
-	"io/fs"
 	"math/rand"
 	"strings"
 	"time"
+
+	"dagame/pkg/words"
 )
 
 //go:embed words/*.txt
@@ -15,28 +16,12 @@ const minWordLen = 6
 
 // SupportedLanguages returns language codes that have an embedded word list.
 func SupportedLanguages() []string {
-	return []string{"en", "no"}
+	langs, _ := words.SupportedLanguages(wordsFS, "words")
+	return langs
 }
 
-// loadWords reads the embedded word file for lang and returns words of at least minWordLen.
 func loadWords(lang string) ([]string, error) {
-	name := strings.TrimSpace(lang)
-	if name == "" {
-		name = "en"
-	}
-	name = "words/" + name + ".txt"
-	b, err := fs.ReadFile(wordsFS, name)
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, line := range strings.Split(string(b), "\n") {
-		w := strings.TrimSpace(strings.ToLower(line))
-		if len(w) >= minWordLen {
-			out = append(out, w)
-		}
-	}
-	return out, nil
+	return words.LoadWords(wordsFS, "words", lang, minWordLen)
 }
 
 // BuildRounds builds count rounds for the given language, shuffling words and letters.

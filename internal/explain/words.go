@@ -2,9 +2,9 @@ package explain
 
 import (
 	"embed"
-	"io/fs"
 	"math/rand"
-	"strings"
+
+	"dagame/pkg/words"
 )
 
 //go:embed words/*.txt
@@ -13,23 +13,7 @@ var wordsFS embed.FS
 const minWordLen = 5
 
 func loadWords(lang string) ([]string, error) {
-	name := strings.TrimSpace(lang)
-	if name == "" {
-		name = "en"
-	}
-	name = "words/" + name + ".txt"
-	b, err := fs.ReadFile(wordsFS, name)
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, line := range strings.Split(string(b), "\n") {
-		w := strings.TrimSpace(strings.ToLower(line))
-		if len(w) >= minWordLen {
-			out = append(out, w)
-		}
-	}
-	return out, nil
+	return words.LoadWords(wordsFS, "words", lang, minWordLen)
 }
 
 // PickRandomWord returns a random word for the given language.
@@ -46,5 +30,6 @@ func PickRandomWord(lang string, rng *rand.Rand) string {
 
 // SupportedLanguages returns language codes that have an embedded word list.
 func SupportedLanguages() []string {
-	return []string{"en"}
+	langs, _ := words.SupportedLanguages(wordsFS, "words")
+	return langs
 }
