@@ -7,14 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"dagame/pkg/gamecommon"
 	"dagame/pkg/id"
 	"dagame/pkg/realtime"
-)
-
-const (
-	StatusLobby      = "lobby"
-	StatusInProgress = "in_progress"
-	StatusFinished   = "finished"
 )
 
 // Store holds games and delegates to realtime.RoomStore for persistence and broadcast.
@@ -102,7 +97,7 @@ func NewGame(rounds int, duration time.Duration, lang string) *Game {
 			Cooldown: realtime.DefaultCooldown,
 		},
 		RoundData: roundData,
-		Status:    StatusLobby,
+		Status:    gamecommon.StatusLobby,
 		Lang:      lang,
 		Players:   make(map[string]*Player),
 	}
@@ -158,10 +153,10 @@ func (g *Game) AddPlayer(username string) *Player {
 func (g *Game) Start(now time.Time) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.Status != StatusLobby {
+	if g.Status != gamecommon.StatusLobby {
 		return errors.New("game already started")
 	}
-	g.Status = StatusInProgress
+	g.Status = gamecommon.StatusInProgress
 	g.TimedRounds.Start(now)
 	g.RoundWinnerID = ""
 	g.RoundSolvedAt = time.Time{}
@@ -176,7 +171,7 @@ func (g *Game) Restart(now time.Time) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.RoundData = BuildRounds(g.Lang, g.TimedRounds.Rounds)
-	g.Status = StatusInProgress
+	g.Status = gamecommon.StatusInProgress
 	g.TimedRounds.Start(now)
 	g.RoundWinnerID = ""
 	g.RoundSolvedAt = time.Time{}
@@ -194,12 +189,12 @@ func (g *Game) AdvanceIfNeeded(now time.Time) bool {
 }
 
 func (g *Game) advanceIfNeededLocked(now time.Time) bool {
-	if g.Status != StatusInProgress || g.TimedRounds.RoundStarted.IsZero() {
+	if g.Status != gamecommon.StatusInProgress || g.TimedRounds.RoundStarted.IsZero() {
 		return false
 	}
 	advanced, finished := g.TimedRounds.Advance(now)
 	if finished {
-		g.Status = StatusFinished
+		g.Status = gamecommon.StatusFinished
 		return true
 	}
 	if advanced {
@@ -230,14 +225,14 @@ func (g *Game) currentRoundDataLocked() Round {
 func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.Status != StatusInProgress {
+	if g.Status != gamecommon.StatusInProgress {
 		return false, errors.New("game not in progress")
 	}
 	if g.TimedRounds.RoundStarted.IsZero() {
 		return false, errors.New("round not started")
 	}
 	_ = g.advanceIfNeededLocked(now)
-	if g.Status != StatusInProgress {
+	if g.Status != gamecommon.StatusInProgress {
 		return false, nil
 	}
 	if !g.TimedRounds.RoundEndedAt.IsZero() {
@@ -276,7 +271,7 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.Status != StatusInProgress {
+	if g.Status != gamecommon.StatusInProgress {
 		return time.Time{}, false
 	}
 	return g.TimedRounds.NextWake(now)
@@ -286,11 +281,11 @@ func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 func (g *Game) UpdateProgress(playerID string, correct int, now time.Time) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.Status != StatusInProgress {
+	if g.Status != gamecommon.StatusInProgress {
 		return
 	}
 	g.advanceIfNeededLocked(now)
-	if g.Status != StatusInProgress || !g.TimedRounds.RoundEndedAt.IsZero() {
+	if g.Status != gamecommon.StatusInProgress || !g.TimedRounds.RoundEndedAt.IsZero() {
 		return
 	}
 	round := g.currentRoundDataLocked()
@@ -390,7 +385,7 @@ func (g *Game) Snapshot(now time.Time) Snapshot {
 		nextRoundAt = g.TimedRounds.RoundEndedAt.Add(g.TimedRounds.Cooldown)
 	}
 	winnerName := ""
-	if g.Status == StatusFinished {
+	if g.Status == gamecommon.StatusFinished {
 		winnerName = resolveWinner(scores)
 	}
 	wordLength := 0

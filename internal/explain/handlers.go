@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"dagame/internal/explain/viewmodel"
+	"dagame/pkg/gamecommon"
 	"dagame/pkg/httputil"
 	explainviews "dagame/views/explain"
 )
@@ -97,7 +98,7 @@ func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request) {
 	}
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	isOwner := g.IsOwner(playerID)
-	showStart := hasPlayer && isOwner && snap.Status == StatusLobby && len(g.Players) >= MinPlayers
+	showStart := hasPlayer && isOwner && snap.Status == gamecommon.StatusLobby && len(g.Players) >= MinPlayers
 
 	data := viewmodel.GamePageData{
 		GameID:     gameID,
@@ -121,7 +122,7 @@ func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request) {
 	playerName, hasPlayer := g.PlayerName(playerID)
 	isOwner := g.IsOwner(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	showStart := hasPlayer && isOwner && snap.Status == StatusLobby && len(g.Players) >= MinPlayers
+	showStart := hasPlayer && isOwner && snap.Status == gamecommon.StatusLobby && len(g.Players) >= MinPlayers
 	vm := snapToVM(snap, showStart, len(g.Players), playerName)
 
 	renderFragment(w, r.Context(), explainviews.LobbyFragment(vm, gameID))
@@ -213,10 +214,10 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 
 	sendAll := func() {
 		snap := g.Snapshot(time.Now().UTC(), playerID)
-		showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == StatusLobby && len(snap.Players) >= MinPlayers
+		showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == gamecommon.StatusLobby && len(snap.Players) >= MinPlayers
 		vm := snapToVM(snap, showStart, len(snap.Players), playerName)
 		lobbyHTML := ""
-		if snap.Status == StatusLobby {
+		if snap.Status == gamecommon.StatusLobby {
 			lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
 		}
 		httputil.WriteSSE(w, "lobby", lobbyHTML)
@@ -238,12 +239,12 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 			return
 		case event := <-sub:
 			snap := g.Snapshot(time.Now().UTC(), playerID)
-			showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == StatusLobby && len(snap.Players) >= MinPlayers
+			showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == gamecommon.StatusLobby && len(snap.Players) >= MinPlayers
 			vm := snapToVM(snap, showStart, len(snap.Players), playerName)
 			switch event {
 			case "lobby":
 				lobbyHTML := ""
-				if snap.Status == StatusLobby {
+				if snap.Status == gamecommon.StatusLobby {
 					lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
 				}
 				httputil.WriteSSE(w, "lobby", lobbyHTML)

@@ -3,6 +3,8 @@ package game
 import (
 	"testing"
 	"time"
+
+	"dagame/pkg/gamecommon"
 )
 
 func TestNewGame(t *testing.T) {
@@ -13,8 +15,8 @@ func TestNewGame(t *testing.T) {
 	if g.ID == "" {
 		t.Error("ID is empty")
 	}
-	if g.Status != StatusLobby {
-		t.Errorf("Status %q, want %q", g.Status, StatusLobby)
+	if g.Status != gamecommon.StatusLobby {
+		t.Errorf("Status %q, want %q", g.Status, gamecommon.StatusLobby)
 	}
 	if g.TimedRounds.Rounds != 2 {
 		t.Errorf("Rounds %d, want 2", g.TimedRounds.Rounds)
@@ -67,8 +69,8 @@ func TestGame_Start(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if g.Status != StatusInProgress {
-		t.Errorf("Status %q, want %q", g.Status, StatusInProgress)
+	if g.Status != gamecommon.StatusInProgress {
+		t.Errorf("Status %q, want %q", g.Status, gamecommon.StatusInProgress)
 	}
 	if g.TimedRounds.CurrentRound != 1 {
 		t.Errorf("CurrentRound %d, want 1", g.TimedRounds.CurrentRound)
@@ -81,7 +83,7 @@ func TestGame_Start(t *testing.T) {
 	if err == nil {
 		t.Error("Start again should return error")
 	}
-	if g.Status != StatusInProgress {
+	if g.Status != gamecommon.StatusInProgress {
 		t.Errorf("Status should still be in progress, got %q", g.Status)
 	}
 }
@@ -221,7 +223,7 @@ func TestGame_Snapshot(t *testing.T) {
 	g.AddPlayer("bob")
 
 	snap := g.Snapshot(now)
-	if snap.Status != StatusLobby {
+	if snap.Status != gamecommon.StatusLobby {
 		t.Errorf("Snapshot Status %q, want lobby", snap.Status)
 	}
 	if len(snap.Players) != 2 {

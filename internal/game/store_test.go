@@ -3,6 +3,8 @@ package game
 import (
 	"testing"
 	"time"
+
+	"dagame/pkg/gamecommon"
 )
 
 func TestNewStore(t *testing.T) {
@@ -21,8 +23,8 @@ func TestStore_CreateGame_GetGame(t *testing.T) {
 	if g.ID == "" {
 		t.Error("game ID is empty")
 	}
-	if g.Status != StatusLobby {
-		t.Errorf("game status %q, want %q", g.Status, StatusLobby)
+	if g.Status != gamecommon.StatusLobby {
+		t.Errorf("game status %q, want %q", g.Status, gamecommon.StatusLobby)
 	}
 	if g.TimedRounds.Rounds != 2 {
 		t.Errorf("game Rounds %d, want 2", g.TimedRounds.Rounds)

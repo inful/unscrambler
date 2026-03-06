@@ -14,6 +14,7 @@ import (
 
 	"dagame/internal/game"
 	"dagame/internal/viewmodel"
+	"dagame/pkg/gamecommon"
 	"dagame/pkg/httputil"
 	"dagame/views/components"
 	"dagame/views/pages"
@@ -57,7 +58,7 @@ func (h *GameHandler) gamePage(w http.ResponseWriter, r *http.Request) {
 	isOwner := instance.IsOwner(playerID)
 	inviteURL := httputil.BuildInviteURL(r, "/game/", gameID)
 	snapshot := instance.Snapshot(time.Now().UTC())
-	showStart := hasPlayer && isOwner && snapshot.Status == game.StatusLobby
+	showStart := hasPlayer && isOwner && snapshot.Status == gamecommon.StatusLobby
 	duration := int(snapshot.RoundDuration.Seconds())
 
 	data := viewmodel.GamePage{
@@ -386,7 +387,7 @@ func toPlayerProgress(entries []game.PlayerProgress, excludeName string) []viewm
 }
 
 func buildRoundFragment(gameID string, snapshot game.Snapshot) viewmodel.RoundFragment {
-	expired := snapshot.Status == game.StatusInProgress && !snapshot.RoundEndedAt.IsZero()
+	expired := snapshot.Status == gamecommon.StatusInProgress && !snapshot.RoundEndedAt.IsZero()
 	return viewmodel.RoundFragment{
 		GameID:         gameID,
 		Status:         snapshot.Status,
