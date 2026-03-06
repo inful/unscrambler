@@ -12,7 +12,7 @@ This doc outlines refactors that would make it easier to add new games similar t
 | HTTP | `pkg/httputil` | ParseInt, WriteSSE, BuildInviteURL, cookie get/set |
 | Words | `pkg/words` | LoadWords(fs, dir, lang, minLen), SupportedLanguages |
 | Status | `pkg/gamecommon` | StatusLobby, StatusInProgress, StatusFinished |
-| Realtime | `pkg/realtime` | RoomStore[T], Broadcaster, TimedRounds, RunLoop, Wake |
+| Realtime | `pkg/realtime` | RoomStore[T], GameStore[G], Broadcaster, TimedRounds, RunLoop, Wake |
 
 Each new game still has to: implement its own Store (wrapping RoomStore), duplicate EnsureRoundLoop/tick logic, repeat handler patterns (get game → 404 → cookie → snapshot → render), and reimplement the SSE stream loop.
 

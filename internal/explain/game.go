@@ -48,42 +48,26 @@ var DefaultEmojiPool = []string{
 }
 
 type Store struct {
-	r *realtime.RoomStore[*Game]
+	*realtime.GameStore[*Game]
 }
 
 func NewStore() *Store {
-	return &Store{r: realtime.NewRoomStore[*Game]()}
+	return &Store{GameStore: realtime.NewGameStore[*Game]()}
 }
 
 func (s *Store) CreateGame(rounds int, duration time.Duration, lang string, emojisPerRound int) *Game {
 	g := NewGame(rounds, duration, lang, emojisPerRound)
-	s.r.Create(g.ID, g)
+	s.Create(g.ID, g)
 	return g
-}
-
-func (s *Store) GetGame(id string) (*Game, bool) {
-	room, ok := s.r.Get(id)
-	if !ok {
-		return nil, false
-	}
-	return room.State, ok
-}
-
-func (s *Store) Broadcaster(id string) *realtime.Broadcaster {
-	return s.r.Broadcaster(id)
-}
-
-func (s *Store) Publish(id string, event string) {
-	s.r.Publish(id, event)
 }
 
 func (s *Store) EnsureRoundLoop(id string, _ *Game) {
 	getState := func() *Game {
-		room, ok := s.r.Get(id)
+		g, ok := s.GetGame(id)
 		if !ok {
 			return nil
 		}
-		return room.State
+		return g
 	}
 	advanceTick := realtime.TickFromRoundLoopState[*Game]([]string{"round", "scores", "players", "wordhint", "canvas"})
 	tick := func(state *Game, now time.Time) (time.Time, []string, bool) {
@@ -100,11 +84,7 @@ func (s *Store) EnsureRoundLoop(id string, _ *Game) {
 		}
 		return next, nil, false
 	}
-	s.r.RunLoop(id, getState, tick)
-}
-
-func (s *Store) Wake(id string) {
-	s.r.Wake(id)
+	s.RunLoop(id, getState, tick)
 }
 
 // Game holds state for one explain game session.

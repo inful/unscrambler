@@ -12,64 +12,31 @@ import (
 	"dagame/pkg/realtime"
 )
 
-// Store holds games and delegates to realtime.RoomStore for persistence and broadcast.
+// Store holds games and delegates to realtime.GameStore for persistence and broadcast.
 type Store struct {
-	r *realtime.RoomStore[*Game]
+	*realtime.GameStore[*Game]
 }
 
 // NewStore creates an in-memory game store with SSE broadcasters.
 func NewStore() *Store {
-	return &Store{r: realtime.NewRoomStore[*Game]()}
+	return &Store{GameStore: realtime.NewGameStore[*Game]()}
 }
 
 // CreateGame initializes a game and registers its broadcaster.
 func (s *Store) CreateGame(rounds int, duration time.Duration, lang string) *Game {
 	g := NewGame(rounds, duration, lang)
-	s.r.Create(g.ID, g)
+	s.Create(g.ID, g)
 	return g
-}
-
-// GetGame returns a game by ID if it exists.
-func (s *Store) GetGame(id string) (*Game, bool) {
-	room, ok := s.r.Get(id)
-	if !ok {
-		return nil, false
-	}
-	return room.State, ok
-}
-
-// Broadcaster returns the SSE broadcaster for a game, creating it if missing.
-func (s *Store) Broadcaster(id string) *realtime.Broadcaster {
-	return s.r.Broadcaster(id)
-}
-
-// Publish notifies subscribers of a game update with a typed event.
-func (s *Store) Publish(id string, event string) {
-	s.r.Publish(id, event)
 }
 
 // EnsureRoundLoop starts the timing loop for a game if not already running.
 func (s *Store) EnsureRoundLoop(id string, _ *Game) {
-	getState := func() *Game {
-		room, ok := s.r.Get(id)
-		if !ok {
-			return nil
-		}
-		return room.State
-	}
-	tick := realtime.TickFromRoundLoopState[*Game]([]string{"round", "scores", "players"})
-	tickWithNilCheck := func(state *Game, now time.Time) (time.Time, []string, bool) {
-		if state == nil {
-			return time.Time{}, nil, true
-		}
-		return tick(state, now)
-	}
-	s.r.RunLoop(id, getState, tickWithNilCheck)
+	s.GameStore.EnsureRoundLoop(id, []string{"round", "scores", "players"})
 }
 
 // WakeRoundLoop unblocks the round loop so it recomputes (e.g. after early round end).
 func (s *Store) WakeRoundLoop(id string) {
-	s.r.Wake(id)
+	s.Wake(id)
 }
 
 func NewGame(rounds int, duration time.Duration, lang string) *Game {
