@@ -1,8 +1,6 @@
 package explain
 
 import (
-	cryptoRand "crypto/rand"
-	"encoding/base32"
 	"errors"
 	"math"
 	"math/rand"
@@ -11,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"dagame/pkg/id"
 	"dagame/pkg/realtime"
 )
 
@@ -175,7 +174,7 @@ func NewGame(rounds int, duration time.Duration, lang string, emojisPerRound int
 		roundData[i] = RoundData{Word: word, Emojis: emojis}
 	}
 	return &Game{
-		ID:             newID(),
+		ID:             id.NewID(),
 		CreatedAt:      time.Now().UTC(),
 		TimedRounds: realtime.TimedRounds{
 			Rounds:   rounds,
@@ -202,18 +201,11 @@ func pickRandomEmojis(n int, rng *rand.Rand) []string {
 	return pool[:n]
 }
 
-func newID() string {
-	buf := make([]byte, 10)
-	_, _ = cryptoRand.Read(buf)
-	encoder := base32.StdEncoding.WithPadding(base32.NoPadding)
-	return strings.ToLower(encoder.EncodeToString(buf))
-}
-
 func (g *Game) AddPlayer(username string) *Player {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	p := &Player{
-		ID:       newID(),
+		ID:       id.NewID(),
 		Username: username,
 		JoinedAt: time.Now().UTC(),
 	}

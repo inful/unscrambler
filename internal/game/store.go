@@ -1,14 +1,13 @@
 package game
 
 import (
-	"crypto/rand"
-	"encoding/base32"
 	"errors"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"dagame/pkg/id"
 	"dagame/pkg/realtime"
 )
 
@@ -95,7 +94,7 @@ func NewGame(rounds int, duration time.Duration, lang string) *Game {
 	}
 	roundData := BuildRounds(lang, rounds)
 	return &Game{
-		ID:        newID(),
+		ID:        id.NewID(),
 		CreatedAt: time.Now().UTC(),
 		TimedRounds: realtime.TimedRounds{
 			Rounds:   rounds,
@@ -144,7 +143,7 @@ func (g *Game) AddPlayer(username string) *Player {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	player := &Player{
-		ID:       newID(),
+		ID:       id.NewID(),
 		Username: username,
 		JoinedAt: time.Now().UTC(),
 	}
@@ -468,10 +467,3 @@ func sortProgress(entries []PlayerProgress) {
 	})
 }
 
-func newID() string {
-	// 10 bytes -> 16 chars of base32, short and url-safe.
-	buf := make([]byte, 10)
-	_, _ = rand.Read(buf)
-	encoder := base32.StdEncoding.WithPadding(base32.NoPadding)
-	return strings.ToLower(encoder.EncodeToString(buf))
-}
