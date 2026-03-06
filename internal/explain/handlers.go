@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"dagame/internal/explain/viewmodel"
+	"dagame/pkg/httputil"
 	explainviews "dagame/views/explain"
 )
 
@@ -59,9 +58,9 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
-	rounds := parseInt(r.FormValue("rounds"), 3)
-	durationSec := parseInt(r.FormValue("duration"), 90)
-	emojis := parseInt(r.FormValue("emojis"), DefaultEmojisPerRound)
+	rounds := httputil.ParseInt(r.FormValue("rounds"), 3)
+	durationSec := httputil.ParseInt(r.FormValue("duration"), 90)
+	emojis := httputil.ParseInt(r.FormValue("emojis"), DefaultEmojisPerRound)
 	if rounds < 1 {
 		rounds = 1
 	}
@@ -91,7 +90,7 @@ func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	playerName, hasPlayer := "", false
 	if playerID != "" {
 		playerName, hasPlayer = g.PlayerName(playerID)
@@ -102,7 +101,7 @@ func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request) {
 
 	data := viewmodel.GamePageData{
 		GameID:     gameID,
-		InviteURL:  buildInviteURL(r, gameID),
+		InviteURL:  httputil.BuildInviteURL(r, "/game/", gameID),
 		HasPlayer:  hasPlayer,
 		PlayerName: playerName,
 		PlayerID:   playerID,
@@ -118,7 +117,7 @@ func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	playerName, hasPlayer := g.PlayerName(playerID)
 	isOwner := g.IsOwner(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
@@ -148,7 +147,7 @@ func (h *Handler) joinGame(w http.ResponseWriter, r *http.Request) {
 		username = username[:20]
 	}
 	p := g.AddPlayer(username)
-	setPlayerCookie(w, gameID, p.ID)
+	httputil.SetPlayerCookie(w, cookiePrefix+"_"+gameID, p.ID)
 	h.store.Publish(gameID, "players")
 	h.store.Publish(gameID, "lobby")
 	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
@@ -161,7 +160,7 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	if playerID == "" {
 		log.Printf("[explain] start: no player cookie for game %s", gameID)
 		http.Error(w, "not a player", http.StatusForbidden)
@@ -200,7 +199,7 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	playerName, _ := g.PlayerName(playerID)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -220,12 +219,12 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 		if snap.Status == StatusLobby {
 			lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
 		}
-		writeSSE(w, "lobby", lobbyHTML)
-		writeSSE(w, "round", renderComponent(ctx, explainviews.RoundFragment(vm)))
-		writeSSE(w, "canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
-		writeSSE(w, "wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
-		writeSSE(w, "players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
-		writeSSE(w, "scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
+		httputil.WriteSSE(w, "lobby", lobbyHTML)
+		httputil.WriteSSE(w, "round", renderComponent(ctx, explainviews.RoundFragment(vm)))
+		httputil.WriteSSE(w, "canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
+		httputil.WriteSSE(w, "wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
+		httputil.WriteSSE(w, "players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
+		httputil.WriteSSE(w, "scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
 		flusher.Flush()
 	}
 	sendAll()
@@ -247,17 +246,17 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
 				if snap.Status == StatusLobby {
 					lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
 				}
-				writeSSE(w, "lobby", lobbyHTML)
+				httputil.WriteSSE(w, "lobby", lobbyHTML)
 			case "round":
-				writeSSE(w, "round", renderComponent(ctx, explainviews.RoundFragment(vm)))
+				httputil.WriteSSE(w, "round", renderComponent(ctx, explainviews.RoundFragment(vm)))
 			case "canvas":
-				writeSSE(w, "canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
+				httputil.WriteSSE(w, "canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
 			case "wordhint":
-				writeSSE(w, "wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
+				httputil.WriteSSE(w, "wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
 			case "players":
-				writeSSE(w, "players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
+				httputil.WriteSSE(w, "players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
 			case "scores":
-				writeSSE(w, "scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
+				httputil.WriteSSE(w, "scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
 			}
 			flusher.Flush()
 		case <-keepAlive.C:
@@ -274,7 +273,7 @@ func (h *Handler) roundFragment(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.RoundFragment(snapToVM(snap, false, 0, pname)))
@@ -287,7 +286,7 @@ func (h *Handler) canvasFragment(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.CanvasFragment(snapToVM(snap, false, 0, pname)))
@@ -300,7 +299,7 @@ func (h *Handler) wordHintFragment(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.WordHintFragment(snapToVM(snap, false, 0, pname), gameID))
@@ -313,7 +312,7 @@ func (h *Handler) playersFragment(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.PlayersFragment(snapToVM(snap, false, 0, pname), playerID))
@@ -326,7 +325,7 @@ func (h *Handler) scoresFragment(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	renderFragment(w, r.Context(), explainviews.ScoresFragment(snapToVM(snap, false, 0, pname)))
@@ -339,7 +338,7 @@ func (h *Handler) updateCanvas(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	if playerID == "" {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -362,7 +361,7 @@ func (h *Handler) submitGuess(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := getPlayerID(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, cookiePrefix+"_"+gameID)
 	if playerID == "" {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return
@@ -384,56 +383,6 @@ func (h *Handler) submitGuess(w http.ResponseWriter, r *http.Request) {
 		h.store.Publish(gameID, "wordhint")
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func getPlayerID(r *http.Request, gameID string) string {
-	cookie, err := r.Cookie(cookiePrefix + "_" + gameID)
-	if err != nil {
-		return ""
-	}
-	return cookie.Value
-}
-
-func setPlayerCookie(w http.ResponseWriter, gameID, playerID string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     cookiePrefix + "_" + gameID,
-		Value:    playerID,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   86400,
-		Secure:   false, // set true when using HTTPS
-	})
-}
-
-func buildInviteURL(r *http.Request, gameID string) string {
-	if base := strings.TrimSpace(os.Getenv("BASE_URL")); base != "" {
-		return strings.TrimRight(base, "/") + "/game/" + gameID
-	}
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	return scheme + "://" + r.Host + "/game/" + gameID
-}
-
-func parseInt(s string, fallback int) int {
-	if s == "" {
-		return fallback
-	}
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		return fallback
-	}
-	return n
-}
-
-func writeSSE(w http.ResponseWriter, event, data string) {
-	_, _ = w.Write([]byte("event: " + event + "\n"))
-	for _, line := range strings.Split(data, "\n") {
-		_, _ = w.Write([]byte("data: " + line + "\n"))
-	}
-	_, _ = w.Write([]byte("\n"))
 }
 
 // renderPage renders a full-page templ component to the response writer.

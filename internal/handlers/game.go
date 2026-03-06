@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 
 	"dagame/internal/game"
 	"dagame/internal/viewmodel"
+	"dagame/pkg/httputil"
 	"dagame/views/components"
 	"dagame/views/pages"
 )
@@ -53,9 +53,9 @@ func (h *GameHandler) gamePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	playerName, hasPlayer := h.findPlayerName(r, instance)
-	playerID := playerIDFromCookie(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
 	isOwner := instance.IsOwner(playerID)
-	inviteURL := buildInviteURL(r, gameID)
+	inviteURL := httputil.BuildInviteURL(r, "/game/", gameID)
 	snapshot := instance.Snapshot(time.Now().UTC())
 	showStart := hasPlayer && isOwner && snapshot.Status == game.StatusLobby
 	duration := int(snapshot.RoundDuration.Seconds())
@@ -106,7 +106,7 @@ func (h *GameHandler) joinGame(w http.ResponseWriter, r *http.Request) {
 
 	player := instance.AddPlayer(username)
 
-	setPlayerCookie(w, gameID, player.ID)
+	httputil.SetPlayerCookie(w, playerCookieName(gameID), player.ID)
 	h.store.Publish(gameID, "players")
 	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 }
@@ -118,7 +118,7 @@ func (h *GameHandler) startGame(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := playerIDFromCookie(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
 	if !instance.IsOwner(playerID) {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return
@@ -138,7 +138,7 @@ func (h *GameHandler) restartGame(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := playerIDFromCookie(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
 	if !instance.IsOwner(playerID) {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return
@@ -181,7 +181,7 @@ func (h *GameHandler) scoresFragment(w http.ResponseWriter, r *http.Request) {
 		Scores:     toScoreEntries(snapshot.Scores),
 		WinnerName: snapshot.WinnerName,
 		Status:     snapshot.Status,
-		IsOwner:    instance.IsOwner(playerIDFromCookie(r, gameID)),
+		IsOwner:    instance.IsOwner(httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))),
 		PlayerName: playerName,
 	}
 	render(w, r, components.ScoresFragment(data))
@@ -212,7 +212,7 @@ func (h *GameHandler) submitGuess(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := playerIDFromCookie(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
 	if playerID == "" {
 		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
 		return
@@ -249,7 +249,7 @@ func (h *GameHandler) progressUpdate(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	playerID := playerIDFromCookie(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
 	if playerID == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -287,7 +287,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	playerID := playerIDFromCookie(r, gameID)
+	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(gameID))
 	playerName, _ := h.findPlayerName(r, instance)
 
 	hub := h.store.Broadcaster(gameID)
@@ -298,7 +298,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 		snapshot := instance.Snapshot(time.Now().UTC())
 		if includeRound {
 			roundHTML := renderToString(r, components.RoundFragment(buildRoundFragment(gameID, snapshot)))
-			writeSSE(w, "round", roundHTML)
+			httputil.WriteSSE(w, "round", roundHTML)
 		}
 		if includePlayers {
 			playersHTML := renderToString(r, components.PlayersFragment(viewmodel.PlayersFragment{
@@ -306,7 +306,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 				WordLength: snapshot.WordLength,
 				PlayerName: playerName,
 			}))
-			writeSSE(w, "players", playersHTML)
+			httputil.WriteSSE(w, "players", playersHTML)
 		}
 		if includeScores {
 			scoresHTML := renderToString(r, components.ScoresFragment(viewmodel.ScoresFragment{
@@ -317,7 +317,7 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 				IsOwner:    instance.IsOwner(playerID),
 				PlayerName: playerName,
 			}))
-			writeSSE(w, "scores", scoresHTML)
+			httputil.WriteSSE(w, "scores", scoresHTML)
 		}
 		flusher.Flush()
 	}
@@ -349,46 +349,15 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GameHandler) findPlayerName(r *http.Request, instance *game.Game) (string, bool) {
-	playerID := playerIDFromCookie(r, instance.ID)
+	playerID := httputil.GetPlayerIDFromCookie(r, playerCookieName(instance.ID))
 	if playerID == "" {
 		return "", false
 	}
 	return instance.PlayerName(playerID)
 }
 
-func playerIDFromCookie(r *http.Request, gameID string) string {
-	cookie, err := r.Cookie(playerCookieName(gameID))
-	if err != nil {
-		return ""
-	}
-	return cookie.Value
-}
-
-func setPlayerCookie(w http.ResponseWriter, gameID string, playerID string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     playerCookieName(gameID),
-		Value:    playerID,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  time.Now().Add(24 * time.Hour),
-	})
-}
-
 func playerCookieName(gameID string) string {
 	return "dagame_player_" + gameID
-}
-
-func buildInviteURL(r *http.Request, gameID string) string {
-	if baseURL := strings.TrimSpace(os.Getenv("BASE_URL")); baseURL != "" {
-		return strings.TrimRight(baseURL, "/") + "/game/" + gameID
-	}
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	host := r.Host
-	return scheme + "://" + host + "/game/" + gameID
 }
 
 func toScoreEntries(scores []game.ScoreEntry) []viewmodel.ScoreEntry {
@@ -474,12 +443,4 @@ func renderToString(r *http.Request, component templ.Component) string {
 	var buf bytes.Buffer
 	_ = component.Render(r.Context(), &buf)
 	return buf.String()
-}
-
-func writeSSE(w http.ResponseWriter, event string, data string) {
-	_, _ = w.Write([]byte("event: " + event + "\n"))
-	for _, line := range strings.Split(data, "\n") {
-		_, _ = w.Write([]byte("data: " + line + "\n"))
-	}
-	_, _ = w.Write([]byte("\n"))
 }

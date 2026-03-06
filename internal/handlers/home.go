@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 
 	"dagame/internal/game"
 	"dagame/internal/viewmodel"
+	"dagame/pkg/httputil"
 	"dagame/views/pages"
 )
 
@@ -51,8 +51,8 @@ func (h *HomeHandler) createGame(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
-	rounds := parseInt(r.FormValue("rounds"), 5)
-	durationSec := parseInt(r.FormValue("duration"), 60)
+	rounds := httputil.ParseInt(r.FormValue("rounds"), 5)
+	durationSec := httputil.ParseInt(r.FormValue("duration"), 60)
 	lang := strings.TrimSpace(r.FormValue("lang"))
 	if lang == "" {
 		lang = "en"
@@ -72,15 +72,4 @@ func (h *HomeHandler) createGame(w http.ResponseWriter, r *http.Request) {
 
 	gameInstance := h.store.CreateGame(rounds, time.Duration(durationSec)*time.Second, lang)
 	http.Redirect(w, r, "/game/"+gameInstance.ID, http.StatusSeeOther)
-}
-
-func parseInt(value string, fallback int) int {
-	if value == "" {
-		return fallback
-	}
-	parsed, err := strconv.Atoi(value)
-	if err != nil {
-		return fallback
-	}
-	return parsed
 }
