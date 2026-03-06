@@ -9,12 +9,12 @@ This doc outlines refactors that would make it easier to add new games similar t
 | Layer | Package | Purpose |
 |-------|---------|---------|
 | IDs | `pkg/id` | `NewID()` for game/player IDs |
-| HTTP | `pkg/httputil` | ParseInt, WriteSSE, BuildInviteURL, cookie get/set |
+| HTTP | `pkg/httputil` | ParseInt, WriteSSE, BuildInviteURL, cookie get/set, WithGame, SSEStream |
 | Words | `pkg/words` | LoadWords(fs, dir, lang, minLen), SupportedLanguages |
 | Status | `pkg/gamecommon` | StatusLobby, StatusInProgress, StatusFinished |
 | Realtime | `pkg/realtime` | RoomStore[T], GameStore[G], Broadcaster, TimedRounds, RunLoop, Wake |
 
-Each new game still has to: implement CreateGame (and optionally custom EnsureRoundLoop), and reimplement the SSE stream loop. Handler lookup (get game → 404 → cookie) is handled by httputil.WithGame.
+Each new game still has to: implement CreateGame (and optionally custom EnsureRoundLoop). Handler lookup and SSE stream loop are handled by httputil.WithGame and httputil.SSEStream.
 
 ---
 
@@ -67,7 +67,7 @@ Handler signatures become “given I have the game and playerID, what do I do?�
 
 ---
 
-### 4. SSE stream helper (medium impact, low effort)
+### 4. SSE stream helper (medium impact, low effort) — **done**
 
 **Problem:** Both streams do the same thing: set SSE headers, subscribe to hub, send initial payload, then loop on context done / event / 25s keepalive. Only “how to build the payload for event X” is game-specific.
 

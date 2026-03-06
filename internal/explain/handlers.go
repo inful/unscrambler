@@ -170,74 +170,49 @@ func (h *Handler) startGame(w http.ResponseWriter, r *http.Request, g *Game, pla
 
 func (h *Handler) stream(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	gameID := g.ID
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
 	playerName, _ := g.PlayerName(playerID)
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
 	hub := h.store.Broadcaster(gameID)
-	sub := hub.Subscribe()
-	defer hub.Unsubscribe(sub)
 
-	ctx := r.Context()
-
-	sendAll := func() {
+	onEvent := func(w http.ResponseWriter, ctx context.Context, event string) {
 		snap := g.Snapshot(time.Now().UTC(), playerID)
 		showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == gamecommon.StatusLobby && len(snap.Players) >= MinPlayers
 		vm := snapToVM(snap, showStart, len(snap.Players), playerName)
-		lobbyHTML := ""
-		if snap.Status == gamecommon.StatusLobby {
-			lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
-		}
-		httputil.WriteSSE(w, "lobby", lobbyHTML)
-		httputil.WriteSSE(w, "round", renderComponent(ctx, explainviews.RoundFragment(vm)))
-		httputil.WriteSSE(w, "canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
-		httputil.WriteSSE(w, "wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
-		httputil.WriteSSE(w, "players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
-		httputil.WriteSSE(w, "scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
-		flusher.Flush()
-	}
-	sendAll()
 
-	keepAlive := time.NewTicker(25 * time.Second)
-	defer keepAlive.Stop()
+		sendOne := func(name string, html string) { httputil.WriteSSE(w, name, html) }
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case event := <-sub:
-			snap := g.Snapshot(time.Now().UTC(), playerID)
-			showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == gamecommon.StatusLobby && len(snap.Players) >= MinPlayers
-			vm := snapToVM(snap, showStart, len(snap.Players), playerName)
-			switch event {
-			case "lobby":
-				lobbyHTML := ""
-				if snap.Status == gamecommon.StatusLobby {
-					lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
-				}
-				httputil.WriteSSE(w, "lobby", lobbyHTML)
-			case "round":
-				httputil.WriteSSE(w, "round", renderComponent(ctx, explainviews.RoundFragment(vm)))
-			case "canvas":
-				httputil.WriteSSE(w, "canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
-			case "wordhint":
-				httputil.WriteSSE(w, "wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
-			case "players":
-				httputil.WriteSSE(w, "players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
-			case "scores":
-				httputil.WriteSSE(w, "scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
+		switch event {
+		case "initial":
+			lobbyHTML := ""
+			if snap.Status == gamecommon.StatusLobby {
+				lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
 			}
-			flusher.Flush()
-		case <-keepAlive.C:
-			_, _ = w.Write([]byte(": keepalive\n\n"))
-			flusher.Flush()
+			sendOne("lobby", lobbyHTML)
+			sendOne("round", renderComponent(ctx, explainviews.RoundFragment(vm)))
+			sendOne("canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
+			sendOne("wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
+			sendOne("players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
+			sendOne("scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
+		case "lobby":
+			lobbyHTML := ""
+			if snap.Status == gamecommon.StatusLobby {
+				lobbyHTML = renderComponent(ctx, explainviews.LobbyFragment(vm, gameID))
+			}
+			sendOne("lobby", lobbyHTML)
+		case "round":
+			sendOne("round", renderComponent(ctx, explainviews.RoundFragment(vm)))
+		case "canvas":
+			sendOne("canvas", renderComponent(ctx, explainviews.CanvasFragment(vm)))
+		case "wordhint":
+			sendOne("wordhint", renderComponent(ctx, explainviews.WordHintFragment(vm, gameID)))
+		case "players":
+			sendOne("players", renderComponent(ctx, explainviews.PlayersFragment(vm, playerID)))
+		case "scores":
+			sendOne("scores", renderComponent(ctx, explainviews.ScoresFragment(vm)))
 		}
+	}
+
+	if err := httputil.SSEStream(w, r, hub, onEvent); err != nil {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 	}
 }
 

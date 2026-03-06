@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -219,74 +220,50 @@ func (h *GameHandler) progressUpdate(w http.ResponseWriter, r *http.Request, ins
 
 func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
 	gameID := instance.ID
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-
-	// SSE stream with explicit event names for round/players/scores.
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
 	playerName, _ := h.findPlayerName(instance, playerID)
-
 	hub := h.store.Broadcaster(gameID)
-	sub := hub.Subscribe()
-	defer hub.Unsubscribe(sub)
 
-	sendSnapshot := func(includeRound bool, includePlayers bool, includeScores bool) {
-		snapshot := instance.Snapshot(time.Now().UTC())
-		if includeRound {
-			roundHTML := renderToString(r, components.RoundFragment(buildRoundFragment(gameID, snapshot)))
-			httputil.WriteSSE(w, "round", roundHTML)
+	onEvent := func(w http.ResponseWriter, ctx context.Context, event string) {
+		sendSnapshot := func(includeRound, includePlayers, includeScores bool) {
+			snapshot := instance.Snapshot(time.Now().UTC())
+			if includeRound {
+				roundHTML := renderToString(r, components.RoundFragment(buildRoundFragment(gameID, snapshot)))
+				httputil.WriteSSE(w, "round", roundHTML)
+			}
+			if includePlayers {
+				playersHTML := renderToString(r, components.PlayersFragment(viewmodel.PlayersFragment{
+					Players:    toPlayerProgress(snapshot.Progress, playerName),
+					WordLength: snapshot.WordLength,
+					PlayerName: playerName,
+				}))
+				httputil.WriteSSE(w, "players", playersHTML)
+			}
+			if includeScores {
+				scoresHTML := renderToString(r, components.ScoresFragment(viewmodel.ScoresFragment{
+					GameID:     gameID,
+					Scores:     toScoreEntries(snapshot.Scores),
+					WinnerName: snapshot.WinnerName,
+					Status:     snapshot.Status,
+					IsOwner:    instance.IsOwner(playerID),
+					PlayerName: playerName,
+				}))
+				httputil.WriteSSE(w, "scores", scoresHTML)
+			}
 		}
-		if includePlayers {
-			playersHTML := renderToString(r, components.PlayersFragment(viewmodel.PlayersFragment{
-				Players:    toPlayerProgress(snapshot.Progress, playerName),
-				WordLength: snapshot.WordLength,
-				PlayerName: playerName,
-			}))
-			httputil.WriteSSE(w, "players", playersHTML)
+		switch event {
+		case "initial":
+			sendSnapshot(true, true, true)
+		case "round":
+			sendSnapshot(true, false, false)
+		case "players":
+			sendSnapshot(false, true, false)
+		case "scores":
+			sendSnapshot(false, false, true)
 		}
-		if includeScores {
-			scoresHTML := renderToString(r, components.ScoresFragment(viewmodel.ScoresFragment{
-				GameID:     gameID,
-				Scores:     toScoreEntries(snapshot.Scores),
-				WinnerName: snapshot.WinnerName,
-				Status:     snapshot.Status,
-				IsOwner:    instance.IsOwner(playerID),
-				PlayerName: playerName,
-			}))
-			httputil.WriteSSE(w, "scores", scoresHTML)
-		}
-		flusher.Flush()
 	}
 
-	sendSnapshot(true, true, true)
-
-	keepAlive := time.NewTicker(25 * time.Second)
-	defer keepAlive.Stop()
-
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case event := <-sub:
-			switch event {
-			case "players":
-				sendSnapshot(false, true, false)
-			case "scores":
-				sendSnapshot(false, false, true)
-			case "round":
-				sendSnapshot(true, false, false)
-			}
-		case <-keepAlive.C:
-			// Comment frame keeps proxies from closing the stream.
-			_, _ = w.Write([]byte(": keepalive\n\n"))
-			flusher.Flush()
-		}
+	if err := httputil.SSEStream(w, r, hub, onEvent); err != nil {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 	}
 }
 

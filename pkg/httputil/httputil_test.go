@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
@@ -219,3 +220,23 @@ func (m *mockGameStore[G]) GetGame(id string) (G, bool) {
 	g, ok := m.games[id]
 	return g, ok
 }
+
+// noFlusher wraps ResponseWriter but does not implement http.Flusher.
+type noFlusher struct{ http.ResponseWriter }
+
+func TestSSEStream_ReturnsErrorWhenFlusherMissing(t *testing.T) {
+	hub := &mockEventHub{ch: make(chan string, 1)}
+	w := &noFlusher{ResponseWriter: httptest.NewRecorder()}
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	err := SSEStream(w, r, hub, func(w http.ResponseWriter, ctx context.Context, event string) {})
+	if err != ErrStreamingUnsupported {
+		t.Errorf("err = %v, want ErrStreamingUnsupported", err)
+	}
+}
+
+type mockEventHub struct {
+	ch chan string
+}
+
+func (m *mockEventHub) Subscribe() chan string     { return m.ch }
+func (m *mockEventHub) Unsubscribe(chan string) {}
