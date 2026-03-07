@@ -6,11 +6,9 @@ import (
 	"math/rand"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"dagame/pkg/gamecommon"
-	"dagame/pkg/id"
 	"dagame/pkg/realtime"
 )
 
@@ -92,25 +90,16 @@ func (s *Store) EnsureRoundLoop(id string, _ *Game) {
 var _ realtime.RoundLoopState = (*Game)(nil)
 
 type Game struct {
-	mu          sync.Mutex
-	ID          string
-	CreatedAt   time.Time
-	TimedRounds realtime.TimedRounds
-	RoundData   []RoundData // pre-picked words per round (so explainer sees same word)
-	Status      string
-	Lang        string
-	OwnerID     string
-	Players     map[string]*Player
+	gamecommon.BaseGame
+	RoundData []RoundData // pre-picked words per round (so explainer sees same word)
 
 	// Current round: word, explainer, canvas, revealed indices, emojis for this round
-	Word              string   // current round word (secret from guessers)
-	ExplainerID       string   // player ID of explainer this round
-	Canvas            []CanvasItem
-	RevealedIndices   []int    // indices into Word that have been revealed to guessers
-	RoundEmojis       []string // n random emojis explainer can use this round
-	EmojisPerRound    int
-	RoundWinnerID     string   // guesser who got it this round (if any)
-	RoundSolvedAt     time.Time
+	Word            string         // current round word (secret from guessers)
+	ExplainerID     string         // player ID of explainer this round
+	Canvas          []CanvasItem
+	RevealedIndices []int    // indices into Word that have been revealed to guessers
+	RoundEmojis     []string // n random emojis explainer can use this round
+	EmojisPerRound  int
 }
 
 type RoundData struct {
@@ -125,12 +114,8 @@ type CanvasItem struct {
 	Y     float64
 }
 
-type Player struct {
-	ID       string
-	Username string
-	JoinedAt time.Time
-	Points   int
-}
+// Player is the per-session player type for this game (alias for gamecommon.BasePlayer).
+type Player = gamecommon.BasePlayer
 
 func NewGame(rounds int, duration time.Duration, lang string, emojisPerRound int) *Game {
 	if lang == "" {
@@ -147,20 +132,22 @@ func NewGame(rounds int, duration time.Duration, lang string, emojisPerRound int
 		roundData[i] = RoundData{Word: word, Emojis: emojis}
 	}
 	return &Game{
-		ID:             id.NewID(),
-		CreatedAt:      time.Now().UTC(),
-		TimedRounds: realtime.TimedRounds{
-			Rounds:   rounds,
-			Duration: duration,
-			Cooldown: realtime.DefaultCooldown,
+		BaseGame: gamecommon.BaseGame{
+			ID:        gamecommon.NewGameID(),
+			CreatedAt: time.Now().UTC(),
+			TimedRounds: realtime.TimedRounds{
+				Rounds:   rounds,
+				Duration: duration,
+				Cooldown: realtime.DefaultCooldown,
+			},
+			Status:         gamecommon.StatusLobby,
+			Lang:           lang,
+			Players:        make(map[string]*gamecommon.BasePlayer),
 		},
-		RoundData:        roundData,
-		Status:           gamecommon.StatusLobby,
-		Lang:             lang,
-		Players:          make(map[string]*Player),
-		EmojisPerRound:   emojisPerRound,
-		Canvas:           nil,
-		RevealedIndices:  nil,
+		RoundData:       roundData,
+		EmojisPerRound:  emojisPerRound,
+		Canvas:          nil,
+		RevealedIndices: nil,
 	}
 }
 
@@ -175,23 +162,14 @@ func pickRandomEmojis(n int, rng *rand.Rand) []string {
 }
 
 func (g *Game) AddPlayer(username string) *Player {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	p := &Player{
-		ID:       id.NewID(),
-		Username: username,
-		JoinedAt: time.Now().UTC(),
-	}
-	g.Players[p.ID] = p
-	if g.OwnerID == "" {
-		g.OwnerID = p.ID
-	}
-	return p
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	return gamecommon.AddPlayer(g.Players, &g.OwnerID, username)
 }
 
 func (g *Game) Start(now time.Time) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusLobby {
 		return errors.New("game already started")
 	}
@@ -234,8 +212,8 @@ func (g *Game) currentRoundDataLocked() RoundData {
 
 // NextTimer returns next wake time for the round loop (including 50%/75% letter-reveal times).
 func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusInProgress {
 		return time.Time{}, false
 	}
@@ -259,7 +237,7 @@ func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 	return next, true
 }
 
-// advanceIfNeededLocked advances the game state. Must be called with g.mu already held.
+// advanceIfNeededLocked advances the game state. Must be called with g.Mu already held.
 func (g *Game) advanceIfNeededLocked(now time.Time) bool {
 	if g.Status != gamecommon.StatusInProgress || g.TimedRounds.RoundStarted.IsZero() {
 		return false
@@ -280,13 +258,20 @@ func (g *Game) advanceIfNeededLocked(now time.Time) bool {
 
 // AdvanceIfNeeded advances to next round or finishes game; updates TimedRounds and game state.
 func (g *Game) AdvanceIfNeeded(now time.Time) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	return g.advanceIfNeededLocked(now)
 }
 
 // RevealLettersIfNeeded reveals one letter at 50% and one at 75% of round time. Returns true if state changed.
 func (g *Game) RevealLettersIfNeeded(now time.Time) bool {
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	return g.revealLettersIfNeededLocked(now)
+}
+
+// revealLettersIfNeededLocked does the work of RevealLettersIfNeeded; caller must hold g.Mu.
+func (g *Game) revealLettersIfNeededLocked(now time.Time) bool {
 	if g.Word == "" || g.Status != gamecommon.StatusInProgress {
 		return false
 	}
@@ -327,8 +312,8 @@ func (g *Game) RevealLettersIfNeeded(now time.Time) bool {
 
 // UpdateCanvas replaces the canvas (explainer only). Caller holds lock or doesn't; we lock inside.
 func (g *Game) UpdateCanvas(playerID string, items []CanvasItem) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusInProgress || g.ExplainerID != playerID {
 		return false
 	}
@@ -338,8 +323,8 @@ func (g *Game) UpdateCanvas(playerID string, items []CanvasItem) bool {
 
 // SubmitGuess returns (correct, error). On correct, awards points to guesser and explainer by time remaining.
 func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusInProgress {
 		return false, errors.New("game not in progress")
 	}
@@ -397,14 +382,14 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 }
 
 func (g *Game) IsOwner(playerID string) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return playerID != "" && playerID == g.OwnerID
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	return gamecommon.IsOwner(g.OwnerID, playerID)
 }
 
 func (g *Game) PlayerName(playerID string) (string, bool) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	p, ok := g.Players[playerID]
 	if !ok {
 		return "", false
@@ -413,15 +398,15 @@ func (g *Game) PlayerName(playerID string) (string, bool) {
 }
 
 func (g *Game) WordLength() int {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	return len(g.Word)
 }
 
 // RevealedWordForGuessers returns the word with only revealed positions filled (e.g. "a__l_").
 func (g *Game) RevealedWordForGuessers() string {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	return revealedWord(g.Word, g.RevealedIndices)
 }
 
@@ -484,10 +469,10 @@ type ScoreEntry struct {
 }
 
 func (g *Game) Snapshot(now time.Time, playerID string) Snapshot {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	g.TimedRounds.Advance(now)
-	g.RevealLettersIfNeeded(now)
+	g.revealLettersIfNeededLocked(now)
 
 	players := make([]PlayerInfo, 0, len(g.Players))
 	scores := make([]ScoreEntry, 0, len(g.Players))
@@ -506,7 +491,7 @@ func (g *Game) Snapshot(now time.Time, playerID string) Snapshot {
 		return scores[i].Name < scores[j].Name
 	})
 
-	// Look up names directly — g.mu is already held, cannot call g.PlayerName() (would deadlock).
+	// Look up names directly — g.Mu is already held, cannot call g.PlayerName() (would deadlock).
 	explainerName := ""
 	if p, ok := g.Players[g.ExplainerID]; ok {
 		explainerName = p.Username

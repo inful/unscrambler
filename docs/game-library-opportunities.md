@@ -11,10 +11,10 @@ This doc outlines refactors that would make it easier to add new games similar t
 | IDs | `pkg/id` | `NewID()` for game/player IDs |
 | HTTP | `pkg/httputil` | ParseInt, WriteSSE, BuildInviteURL, cookie get/set, WithGame, SSEStream |
 | Words | `pkg/words` | LoadWords(fs, dir, lang, minLen), SupportedLanguages |
-| Status | `pkg/gamecommon` | StatusLobby, StatusInProgress, StatusFinished |
+| Status / base | `pkg/gamecommon` | StatusLobby, StatusInProgress, StatusFinished, BaseGame, BasePlayer, AddPlayer, IsOwner, NewGameID |
 | Realtime | `pkg/realtime` | RoomStore[T], GameStore[G], Broadcaster, TimedRounds, RunLoop, Wake |
 
-Each new game still has to: implement CreateGame (and optionally custom EnsureRoundLoop). Handler lookup and SSE stream loop are handled by httputil.WithGame and httputil.SSEStream.
+Each new game still has to: implement CreateGame (and optionally custom EnsureRoundLoop), and game-specific fields/snapshot. Handler lookup, SSE stream loop, and common game/player fields are handled by httputil and gamecommon.
 
 ---
 
@@ -84,7 +84,7 @@ Each game passes a callback that, given an event name (and maybe a “snapshot�
 
 ---
 
-### 5. Optional: shared “base game” struct (medium impact, higher effort)
+### 5. Optional: shared "base game" struct (medium impact, higher effort) — **done**
 
 **Problem:** Both games share a lot of fields: ID, CreatedAt, TimedRounds, Status, Lang, OwnerID, Players map, RoundWinnerID, RoundSolvedAt. Player has ID, Username, JoinedAt, Points (and game adds Progress). AddPlayer and IsOwner are almost identical.
 

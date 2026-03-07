@@ -4,11 +4,9 @@ import (
 	"errors"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"dagame/pkg/gamecommon"
-	"dagame/pkg/id"
 	"dagame/pkg/realtime"
 )
 
@@ -45,33 +43,29 @@ func NewGame(rounds int, duration time.Duration, lang string) *Game {
 	}
 	roundData := BuildRounds(lang, rounds)
 	return &Game{
-		ID:        id.NewID(),
-		CreatedAt: time.Now().UTC(),
-		TimedRounds: realtime.TimedRounds{
-			Rounds:   rounds,
-			Duration: duration,
-			Cooldown: realtime.DefaultCooldown,
+		BaseGame: gamecommon.BaseGame{
+			ID:        gamecommon.NewGameID(),
+			CreatedAt: time.Now().UTC(),
+			TimedRounds: realtime.TimedRounds{
+				Rounds:   rounds,
+				Duration: duration,
+				Cooldown: realtime.DefaultCooldown,
+			},
+			Status:  gamecommon.StatusLobby,
+			Lang:    lang,
+			Players: make(map[string]*gamecommon.BasePlayer),
 		},
 		RoundData: roundData,
-		Status:    gamecommon.StatusLobby,
-		Lang:      lang,
-		Players:   make(map[string]*Player),
+		Progress:  make(map[string]int),
 	}
 }
 
-// Game holds the state for a single session.
+// Game holds the state for a single session. It embeds gamecommon.BaseGame; per-round
+// progress (correct letters) is in Progress keyed by player ID.
 type Game struct {
-	mu            sync.Mutex
-	ID            string
-	CreatedAt     time.Time
-	TimedRounds   realtime.TimedRounds // Rounds, Duration, Cooldown, CurrentRound, RoundStarted, RoundEndedAt
-	RoundData     []Round
-	Status        string
-	Lang          string
-	RoundWinnerID string
-	RoundSolvedAt time.Time
-	OwnerID       string
-	Players       map[string]*Player
+	gamecommon.BaseGame
+	RoundData []Round
+	Progress  map[string]int
 }
 
 // Round describes a single word and its scrambled version.
@@ -80,35 +74,20 @@ type Round struct {
 	Scrambled string
 }
 
-// Player tracks per-session state for a participant.
-type Player struct {
-	ID       string
-	Username string
-	JoinedAt time.Time
-	Points   int
-	Progress int
-}
+// Player is the per-session player type for this game (alias for gamecommon.BasePlayer).
+type Player = gamecommon.BasePlayer
 
 // AddPlayer registers a player and assigns ownership if unset.
 func (g *Game) AddPlayer(username string) *Player {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	player := &Player{
-		ID:       id.NewID(),
-		Username: username,
-		JoinedAt: time.Now().UTC(),
-	}
-	g.Players[player.ID] = player
-	if g.OwnerID == "" {
-		g.OwnerID = player.ID
-	}
-	return player
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	return gamecommon.AddPlayer(g.Players, &g.OwnerID, username)
 }
 
 // Start begins round one if the game is in the lobby.
 func (g *Game) Start(now time.Time) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusLobby {
 		return errors.New("game already started")
 	}
@@ -116,16 +95,16 @@ func (g *Game) Start(now time.Time) error {
 	g.TimedRounds.Start(now)
 	g.RoundWinnerID = ""
 	g.RoundSolvedAt = time.Time{}
-	for _, player := range g.Players {
-		player.Progress = 0
+	for id := range g.Players {
+		g.Progress[id] = 0
 	}
 	return nil
 }
 
 // Restart resets rounds and scores while keeping the same session ID.
 func (g *Game) Restart(now time.Time) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	g.RoundData = BuildRounds(g.Lang, g.TimedRounds.Rounds)
 	g.Status = gamecommon.StatusInProgress
 	g.TimedRounds.Start(now)
@@ -133,14 +112,16 @@ func (g *Game) Restart(now time.Time) {
 	g.RoundSolvedAt = time.Time{}
 	for _, player := range g.Players {
 		player.Points = 0
-		player.Progress = 0
+	}
+	for id := range g.Players {
+		g.Progress[id] = 0
 	}
 }
 
 // AdvanceIfNeeded moves the game to the next round if timing conditions are met.
 func (g *Game) AdvanceIfNeeded(now time.Time) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	return g.advanceIfNeededLocked(now)
 }
 
@@ -156,8 +137,8 @@ func (g *Game) advanceIfNeededLocked(now time.Time) bool {
 	if advanced {
 		g.RoundWinnerID = ""
 		g.RoundSolvedAt = time.Time{}
-		for _, player := range g.Players {
-			player.Progress = 0
+		for id := range g.Players {
+			g.Progress[id] = 0
 		}
 	}
 	return advanced
@@ -165,8 +146,8 @@ func (g *Game) advanceIfNeededLocked(now time.Time) bool {
 
 // CurrentRoundData returns the word data for the current round.
 func (g *Game) CurrentRoundData() Round {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	return g.currentRoundDataLocked()
 }
 
@@ -179,8 +160,8 @@ func (g *Game) currentRoundDataLocked() Round {
 
 // SubmitGuess validates a guess, awards points, and ends the round on success.
 func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusInProgress {
 		return false, errors.New("game not in progress")
 	}
@@ -216,7 +197,7 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 		points = 2
 	}
 	player.Points += points
-	player.Progress = len(round.Word)
+	g.Progress[playerID] = len(round.Word)
 	g.RoundWinnerID = playerID
 	g.RoundSolvedAt = now
 	g.TimedRounds.RoundEndedAt = now
@@ -225,8 +206,8 @@ func (g *Game) SubmitGuess(playerID string, guess string, now time.Time) (bool, 
 
 // NextTimer returns the next time the round state should advance.
 func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusInProgress {
 		return time.Time{}, false
 	}
@@ -235,8 +216,8 @@ func (g *Game) NextTimer(now time.Time) (time.Time, bool) {
 
 // UpdateProgress stores a player's correct letter count for the current round.
 func (g *Game) UpdateProgress(playerID string, correct int, now time.Time) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusInProgress {
 		return
 	}
@@ -254,17 +235,16 @@ func (g *Game) UpdateProgress(playerID string, correct int, now time.Time) {
 	if correct > len(round.Word) {
 		correct = len(round.Word)
 	}
-	player, ok := g.Players[playerID]
-	if !ok {
+	if _, ok := g.Players[playerID]; !ok {
 		return
 	}
-	player.Progress = correct
+	g.Progress[playerID] = correct
 }
 
 // PlayerName resolves a player's display name by ID.
 func (g *Game) PlayerName(playerID string) (string, bool) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	player, ok := g.Players[playerID]
 	if !ok {
 		return "", false
@@ -274,15 +254,15 @@ func (g *Game) PlayerName(playerID string) (string, bool) {
 
 // IsOwner reports whether the given player ID owns the session.
 func (g *Game) IsOwner(playerID string) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return playerID != "" && playerID == g.OwnerID
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	return gamecommon.IsOwner(g.OwnerID, playerID)
 }
 
 // PlayerNames returns a snapshot of all player names.
 func (g *Game) PlayerNames() []string {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	players := make([]string, 0, len(g.Players))
 	for _, player := range g.Players {
 		players = append(players, player.Username)
@@ -311,13 +291,13 @@ type Snapshot struct {
 
 // Snapshot returns a consistent view of the current game state.
 func (g *Game) Snapshot(now time.Time) Snapshot {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	g.advanceIfNeededLocked(now)
 	players := make([]string, 0, len(g.Players))
 	scores := make([]ScoreEntry, 0, len(g.Players))
 	progress := make([]PlayerProgress, 0, len(g.Players))
-	for _, player := range g.Players {
+	for id, player := range g.Players {
 		players = append(players, player.Username)
 		scores = append(scores, ScoreEntry{
 			Name:   player.Username,
@@ -325,7 +305,7 @@ func (g *Game) Snapshot(now time.Time) Snapshot {
 		})
 		progress = append(progress, PlayerProgress{
 			Name:    player.Username,
-			Correct: player.Progress,
+			Correct: g.Progress[id],
 		})
 	}
 	sortScores(scores)
