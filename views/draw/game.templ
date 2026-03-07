@@ -1,0 +1,291 @@
+package drawviews
+
+import (
+	"strconv"
+
+	"dagame/internal/draw/viewmodel"
+)
+
+templ GamePage(data viewmodel.GamePageData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Draw</title>
+			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			@drawStyles()
+		</head>
+		<body>
+			<section class="section">
+				<div id="game-root" class="container" data-game-id={ data.GameID }>
+					<h1 class="title is-2">
+						<a href="/" class="has-text-light" style="text-decoration:none;">Draw</a>
+					</h1>
+					if !data.HasPlayer {
+						<div class="columns is-centered">
+							<div class="column is-half">
+								<div class="card">
+									<div class="card-content">
+										<h2 class="title is-5">Join the game</h2>
+										<form method="POST" action={ templ.URL("/game/" + data.GameID + "/join") }>
+											<div class="field">
+												<label class="label" for="username">Your name</label>
+												<div class="control">
+													<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required autofocus/>
+												</div>
+											</div>
+											<div class="field">
+												<div class="control">
+													<button type="submit" class="button is-primary">Join game</button>
+												</div>
+											</div>
+										</form>
+										<p class="help mt-3">Invite a friend: { data.InviteURL }</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					} else {
+						if data.Snap.Status == "lobby" || data.Snap.Status == "finished" {
+							<div id="invite-bar" class="notification is-light invite-url mb-4" style="background:#374151;">
+								<div class="field has-addons">
+									<div class="control is-expanded">
+										<input id="invite-input" class="input is-small" type="text" value={ data.InviteURL } readonly style="background:#1f2937;color:#f3f4f6;"/>
+									</div>
+									<div class="control">
+										<button
+											id="copy-btn"
+											class="button is-info is-small"
+											type="button"
+											data-url={ data.InviteURL }
+											onclick="(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)"
+										>Copy</button>
+									</div>
+								</div>
+							</div>
+						} else {
+							<div id="invite-bar"></div>
+						}
+						<div class="columns">
+							<div class="column is-two-thirds">
+								<div id="lobby-actions" class="mb-4">
+									@LobbyFragment(data.Snap, data.GameID)
+								</div>
+								<div id="canvas" class="mb-4">
+									@CanvasFragment(data.Snap, data.GameID)
+								</div>
+								<div id="wordhint">
+									@WordHintFragment(data.Snap, data.GameID)
+								</div>
+							</div>
+							<div class="column">
+								<div id="scores" class="mb-4">
+									@ScoresFragment(data.Snap)
+								</div>
+								<div id="round" class="mb-4">
+									@RoundFragment(data.Snap)
+								</div>
+								if data.Snap.Status == "lobby" {
+									<div class="card mb-4">
+										<div class="card-content">
+											<h2 class="title is-6 mb-3">Game settings</h2>
+											<div class="settings-item">
+												<span class="has-text-grey">Rounds</span>
+												<strong>{ strconv.Itoa(data.Snap.Rounds) }</strong>
+											</div>
+											<div class="settings-item">
+												<span class="has-text-grey">Seconds per round</span>
+												<strong>{ strconv.Itoa(data.Snap.RoundDurationSec) }</strong>
+											</div>
+										</div>
+									</div>
+								}
+								<div id="players" class="mb-4">
+									@PlayersFragment(data.Snap, data.PlayerID)
+								</div>
+							</div>
+						</div>
+						<script type="text/javascript">
+(function(){
+var root=document.getElementById("game-root");
+var gid=root&&root.dataset.gameId;
+var _timerInterval=null;
+function cleanupCountdown(){
+  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }
+}
+function initCountdown(){
+  cleanupCountdown();
+  var el=document.querySelector("[data-round-timer]");
+  if(!el) return;
+  var startMs=Number(el.dataset.startMs||"0");
+  var durationSec=Number(el.dataset.durationSec||"0");
+  var nextRoundMs=Number(el.dataset.nextRoundMs||"0");
+  if(!startMs||!durationSec) return;
+  var endMs=startMs+durationSec*1000;
+  var timerEl=el?el.querySelector("[data-timer]"):null;
+  var nextTimerEl=el?el.querySelector("[data-next-timer]"):null;
+  var tick=function(){
+    var now=Date.now();
+    if(timerEl) timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+"s";
+    if(nextTimerEl&&nextRoundMs) nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+"s";
+  };
+  tick();
+  _timerInterval=setInterval(tick,1000);
+}
+initCountdown();
+
+var DrawGame={
+  currentColor: "#000000",
+  redraw: function(canvas, strokes){
+    if(!canvas) return;
+    var ctx=canvas.getContext("2d");
+    if(!ctx) return;
+    ctx.fillStyle="#fff";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.lineWidth=3;
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
+    for(var s=0;s<strokes.length;s++){
+      var stroke=strokes[s];
+      var pts=stroke.points||stroke.Points||[];
+      if(pts.length<2) continue;
+      ctx.strokeStyle=stroke.color||stroke.Color||"#000000";
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x||pts[0].X, pts[0].y||pts[0].Y);
+      for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x||pts[i].X, pts[i].y||pts[i].Y);
+      ctx.stroke();
+    }
+  },
+  attachDrawing: function(canvas, postUrl, container){
+    if(!canvas||!postUrl||!container) return;
+    canvas.classList.remove("readonly");
+    var ctx=canvas.getContext("2d");
+    if(!ctx) return;
+    var currentStroke=[];
+    function getXY(e){
+      var r=canvas.getBoundingClientRect();
+      var scaleX=canvas.width/r.width, scaleY=canvas.height/r.height;
+      return { x:(e.clientX-r.left)*scaleX, y:(e.clientY-r.top)*scaleY };
+    }
+    function drawAll(){
+      var json=container.getAttribute("data-strokes")||"[]";
+      var strokes=[];
+      try{ strokes=JSON.parse(json); }catch(e){}
+      DrawGame.redraw(canvas, strokes);
+      if(currentStroke.length>=2){
+        ctx.strokeStyle=DrawGame.currentColor||"#000000";
+        ctx.lineWidth=3;
+        ctx.lineCap="round";
+        ctx.lineJoin="round";
+        ctx.beginPath();
+        ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
+        for(var i=1;i<currentStroke.length;i++) ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
+        ctx.stroke();
+      }
+    }
+    function sendStrokes(){
+      var json=container.getAttribute("data-strokes")||"[]";
+      var strokes=[];
+      try{ strokes=JSON.parse(json); }catch(e){}
+      strokes.push({ points: currentStroke, color: DrawGame.currentColor||"#000000" });
+      fetch(postUrl,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(strokes) });
+    }
+    canvas.onmousedown=function(e){
+      e.preventDefault();
+      currentStroke=[getXY(e)];
+      drawAll();
+    };
+    canvas.onmousemove=function(e){
+      if(currentStroke.length>0){
+        currentStroke.push(getXY(e));
+        drawAll();
+      }
+    };
+    canvas.onmouseup=function(e){
+      if(currentStroke.length>0){ sendStrokes(); currentStroke=[]; }
+    };
+    canvas.onmouseleave=function(e){
+      if(currentStroke.length>0){ sendStrokes(); currentStroke=[]; }
+    };
+  },
+  undo: function(){
+    var container=document.getElementById("draw-canvas-container");
+    if(!container) return;
+    var postUrl=container.getAttribute("data-canvas-post");
+    if(!postUrl) return;
+    var json=container.getAttribute("data-strokes")||"[]";
+    var strokes=[];
+    try{ strokes=JSON.parse(json); }catch(e){}
+    if(strokes.length===0) return;
+    strokes.pop();
+    fetch(postUrl,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(strokes) });
+  },
+  clear: function(){
+    var container=document.getElementById("draw-canvas-container");
+    if(!container) return;
+    var postUrl=container.getAttribute("data-canvas-post");
+    if(!postUrl) return;
+    fetch(postUrl,{ method:"POST", headers:{"Content-Type":"application/json"}, body:"[]" });
+  },
+  initCanvas: function(){
+    var container=document.getElementById("draw-canvas-container");
+    if(!container) return;
+    var canvas=document.getElementById("draw-canvas");
+    if(!canvas) return;
+    var strokesJson=container.getAttribute("data-strokes")||"[]";
+    var strokes=[];
+    try{ strokes=JSON.parse(strokesJson); }catch(e){}
+    this.redraw(canvas, strokes);
+    var isExplainer=container.getAttribute("data-is-explainer")==="true";
+    var postUrl=container.getAttribute("data-canvas-post")||"";
+    canvas.onmousedown=null;
+    canvas.onmousemove=null;
+    canvas.onmouseup=null;
+    canvas.onmouseleave=null;
+    canvas.classList.remove("readonly");
+    var canvasSection=document.getElementById("canvas");
+    if(canvasSection) canvasSection.querySelectorAll(".draw-color-btn").forEach(function(btn){
+      btn.classList.remove("is-selected");
+      if(btn.dataset.drawColor===DrawGame.currentColor) btn.classList.add("is-selected");
+      btn.onclick=function(){
+        DrawGame.currentColor=this.dataset.drawColor||"#000000";
+        canvasSection.querySelectorAll(".draw-color-btn").forEach(function(b){ b.classList.remove("is-selected"); });
+        this.classList.add("is-selected");
+      };
+    });
+    if(isExplainer&&postUrl) this.attachDrawing(canvas, postUrl, container);
+    else canvas.classList.add("readonly");
+  }
+};
+window.DrawGame=DrawGame;
+
+if(gid){
+  var src=new EventSource("/game/"+gid+"/stream");
+  src.addEventListener("lobby", function(e){ var el=document.getElementById("lobby-actions"); if(el) el.innerHTML=e.data; });
+  src.addEventListener("round", function(e){
+    cleanupCountdown();
+    var el=document.getElementById("round");
+    if(el) el.innerHTML=e.data;
+    initCountdown();
+    var bar=document.getElementById("invite-bar");
+    if(bar) bar.style.display=el&&el.querySelector("[data-round-timer]")?"none":"";
+  });
+  src.addEventListener("canvas", function(e){
+    var el=document.getElementById("canvas");
+    if(el){ el.innerHTML=e.data; DrawGame.initCanvas(); }
+  });
+  src.addEventListener("wordhint", function(e){ var el=document.getElementById("wordhint"); if(el) el.innerHTML=e.data; });
+  src.addEventListener("players", function(e){ var el=document.getElementById("players"); if(el) el.innerHTML=e.data; });
+  src.addEventListener("scores", function(e){ var el=document.getElementById("scores"); if(el) el.innerHTML=e.data; });
+}
+setTimeout(function(){ DrawGame.initCanvas(); }, 0);
+})();
+						</script>
+					}
+				</div>
+			</section>
+		</body>
+	</html>
+}

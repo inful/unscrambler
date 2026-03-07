@@ -1,0 +1,123 @@
+package drawviews
+
+// drawStyles emits the shared <style> block used by every page.
+templ drawStyles() {
+	<style>
+		html, body {
+			background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+			font-family: "Segoe UI", system-ui, sans-serif;
+			min-height: 100%;
+			background-attachment: fixed;
+			color: #e8e8e8;
+		}
+
+		.card {
+			box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+			border: 1px solid #2a2a4a;
+			border-radius: 12px;
+			background: #1f2937;
+		}
+
+		.title, .subtitle { color: #f3f4f6; }
+		.label { color: #d1d5db; }
+		.input { background: #111827; border-color: #374151; color: #f9fafb; }
+		.button.is-primary { background: #3b82f6; }
+
+		.draw-canvas-container {
+			position: relative;
+			background: #fff;
+			border-radius: 8px;
+			border: 2px solid #374151;
+			overflow: hidden;
+		}
+		#draw-canvas {
+			display: block;
+			cursor: crosshair;
+		}
+		#draw-canvas.readonly {
+			cursor: default;
+		}
+
+		.draw-toolbar {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 1rem;
+		}
+		.draw-color-palette {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+			align-items: center;
+		}
+		.draw-actions {
+			display: flex;
+			gap: 0.5rem;
+		}
+		.draw-action-btn {
+			background: #374151 !important;
+			color: #e5e7eb !important;
+			border: 1px solid #4b5563;
+		}
+		.draw-action-btn:hover {
+			background: #4b5563 !important;
+			color: #f3f4f6 !important;
+		}
+		.draw-color-btn {
+			width: 2rem;
+			height: 2rem;
+			border: 2px solid #4b5563;
+			border-radius: 50%;
+			cursor: pointer;
+			padding: 0;
+			transition: transform 0.1s, box-shadow 0.1s;
+		}
+		.draw-color-btn:hover {
+			transform: scale(1.1);
+			box-shadow: 0 0 0 2px #60a5fa;
+		}
+		.draw-color-btn.is-selected {
+			border-color: #f3f4f6;
+			box-shadow: 0 0 0 2px #60a5fa;
+		}
+
+		.word-letters {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+			list-style: none;
+			padding: 0;
+			margin: 0.5rem 0 1rem;
+		}
+		.word-letter {
+			min-width: 2.6rem;
+			height: 3.2rem;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: #374151;
+			border: 2px solid #4b5563;
+			border-radius: 8px;
+			font-size: 1.5rem;
+			font-weight: 600;
+			color: #f3f4f6;
+		}
+		.word-letter.is-blank {
+			background: #1f2937;
+			border-color: #4b5563;
+			color: #6b7280;
+		}
+		.word-letter.is-space {
+			border: none;
+			background: transparent;
+			min-width: 1rem;
+		}
+
+		.invite-url input {
+			font-family: ui-monospace, monospace;
+			font-size: 0.85rem;
+		}
+		.settings-item { display: flex; justify-content: space-between; padding: 0.25rem 0; border-bottom: 1px solid #374151; }
+		.settings-item:last-child { border-bottom: none; }
+	</style>
+}

@@ -1,5 +1,6 @@
 # Build artifacts (air / go build)
 /web
 /explain
+/draw
 /tmp/
 dist/

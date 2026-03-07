@@ -1,0 +1,232 @@
+package drawviews
+
+import (
+	"strconv"
+
+	"dagame/internal/draw/viewmodel"
+)
+
+// LobbyFragment renders the #lobby-actions section.
+templ LobbyFragment(snap viewmodel.SnapData, gameID string) {
+	if snap.ShowStart {
+		<button
+			type="button"
+			class="button is-primary"
+			data-game-id={ gameID }
+			onclick="fetch('/game/'+this.dataset.gameId+'/start',{method:'POST'})"
+		>Start game</button>
+	} else if snap.Status == "lobby" {
+		<div class="notification is-light" style="background:#374151;color:#e5e7eb;">
+			Waiting for more players — need at least { strconv.Itoa(snap.MinPlayers) }, have { strconv.Itoa(snap.PlayerCount) }.
+		</div>
+	}
+}
+
+// RoundFragment renders the #round section.
+templ RoundFragment(snap viewmodel.SnapData) {
+	if snap.Status == "lobby" {
+		<div class="notification is-info is-light" style="background:#374151;color:#e5e7eb;">
+			Game hasn't started yet. Waiting in the lobby…
+		</div>
+	} else if snap.Status == "finished" {
+		<div class="notification is-success" style="background:#065f46;color:#d1fae5;">
+			Game over!
+			if snap.WinnerName != "" {
+				<strong>{ snap.WinnerName }</strong> wins!
+			}
+		</div>
+	} else {
+		<div
+			class="card"
+			data-round-timer
+			data-start-ms={ strconv.FormatInt(snap.RoundStartedMs, 10) }
+			data-duration-sec={ strconv.Itoa(snap.RoundDurationSec) }
+			data-next-round-ms={ strconv.FormatInt(snap.NextRoundAtMs, 10) }
+		>
+			<div class="card-content">
+				<div class="level is-mobile mb-3">
+					<div class="level-left">
+						<div class="level-item">
+							<p class="subtitle is-6">Round { strconv.Itoa(snap.CurrentRound) } of { strconv.Itoa(snap.Rounds) }</p>
+						</div>
+					</div>
+					<div class="level-right">
+						<div class="level-item">
+							if snap.RoundWinnerName == "" && snap.NextRoundAtMs == 0 {
+								<span class="tag is-dark is-medium">⏱ <span class="ml-1" data-timer>--</span></span>
+							}
+						</div>
+					</div>
+				</div>
+				if snap.ExplainerName != "" {
+					<p class="mb-2">
+						Drawer: <span class="tag is-info is-light is-medium" style="background:#1e3a5f;color:#93c5fd;">{ snap.ExplainerName }</span>
+					</p>
+				}
+				if snap.RoundWinnerName != "" {
+					<div class="notification is-success is-light mt-2 mb-0 py-3" style="background:#064e3b;color:#a7f3d0;">
+						<strong>{ snap.RoundWinnerName }</strong> guessed it!
+						Next round in <strong><span data-next-timer>--</span>s</strong>.
+					</div>
+				}
+			</div>
+		</div>
+	}
+}
+
+// CanvasFragment renders the #canvas section with drawing surface and stroke data.
+templ CanvasFragment(snap viewmodel.SnapData, gameID string) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Canvas</h2>
+			<div
+				id="draw-canvas-container"
+				class="draw-canvas-container"
+				data-strokes={ snap.StrokesJSON }
+				data-is-explainer={ strconv.FormatBool(snap.IsExplainer) }
+				data-game-id={ gameID }
+				data-canvas-post={ templ.URL("/game/" + gameID + "/canvas") }
+			>
+				<canvas id="draw-canvas" width="600" height="400"></canvas>
+			</div>
+			if snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
+				<div class="draw-toolbar mt-2 mb-2">
+					<div class="draw-color-palette" role="group" aria-label="Drawing color">
+						<button type="button" class="draw-color-btn is-selected" data-draw-color="#000000" style="background:#000000;" title="Black"></button>
+						<button type="button" class="draw-color-btn" data-draw-color="#dc2626" style="background:#dc2626;" title="Red"></button>
+						<button type="button" class="draw-color-btn" data-draw-color="#2563eb" style="background:#2563eb;" title="Blue"></button>
+						<button type="button" class="draw-color-btn" data-draw-color="#16a34a" style="background:#16a34a;" title="Green"></button>
+						<button type="button" class="draw-color-btn" data-draw-color="#ea580c" style="background:#ea580c;" title="Orange"></button>
+						<button type="button" class="draw-color-btn" data-draw-color="#9333ea" style="background:#9333ea;" title="Purple"></button>
+						<button type="button" class="draw-color-btn" data-draw-color="#eab308" style="background:#eab308;" title="Yellow"></button>
+					</div>
+					<div class="draw-actions">
+						<button type="button" class="button is-small is-light draw-action-btn" onclick="if(typeof DrawGame!=='undefined')DrawGame.undo();" title="Undo last stroke">Undo</button>
+						<button type="button" class="button is-small is-light draw-action-btn" onclick="if(typeof DrawGame!=='undefined')DrawGame.clear();" title="Clear canvas">Clear</button>
+					</div>
+				</div>
+				<p class="help mt-2" style="color:#9ca3af;">Draw on the canvas to hint the word. Others will see your drawing in real time.</p>
+			}
+			if snap.Status == "lobby" {
+				<p class="has-text-grey-light py-4" style="color:#6b7280;">The canvas will appear here once the game starts.</p>
+			}
+		</div>
+	</div>
+}
+
+// WordHintFragment renders the wordhint section.
+templ WordHintFragment(snap viewmodel.SnapData, gameID string) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Word</h2>
+			if snap.Status == "lobby" {
+				<p class="has-text-grey-light" style="color:#6b7280;">The word will be revealed when the round starts.</p>
+			} else if snap.IsExplainer {
+				<p class="help mb-1" style="color:#9ca3af;">You are the drawer — draw to hint this word:</p>
+				<p class="title is-3 mt-2">{ snap.Word }</p>
+			} else {
+				<ul class="word-letters mb-2">
+					for _, ch := range wordBoxes(snap.RevealedWord, snap.WordLength) {
+						if ch == " " {
+							<li class="word-letter is-space"></li>
+						} else if ch == "_" {
+							<li class="word-letter is-blank">_</li>
+						} else {
+							<li class="word-letter">{ ch }</li>
+						}
+					}
+				</ul>
+				<p class="help mb-3" style="color:#9ca3af;">{ strconv.Itoa(snap.WordLength) } letters</p>
+				if snap.RoundWinnerName != "" {
+					<p class="has-text-success" style="color:#34d399;">Guessed by <strong>{ snap.RoundWinnerName }</strong>!</p>
+				} else if snap.Status == "in_progress" {
+					<form
+						data-game-id={ gameID }
+						onsubmit="(function(f){var i=f.querySelector('input[name=guess]');var g=i.value.trim();if(!g)return false;fetch('/game/'+f.dataset.gameId+'/guess',{method:'POST',body:new URLSearchParams({guess:g})}).then(function(){i.value='';i.focus();});return false;})(this);return false;"
+					>
+						<div class="field has-addons">
+							<div class="control is-expanded">
+								<input class="input" name="guess" placeholder="Type your guess…" autocomplete="off"/>
+							</div>
+							<div class="control">
+								<button type="submit" class="button is-primary">Guess</button>
+							</div>
+						</div>
+					</form>
+				}
+			}
+		</div>
+	</div>
+}
+
+// PlayersFragment renders the players section.
+templ PlayersFragment(snap viewmodel.SnapData, currentPlayerID string) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Players</h2>
+			if len(snap.Players) == 0 {
+				<p class="has-text-grey" style="color:#6b7280;">No players yet.</p>
+			} else {
+				<ul>
+					for _, p := range snap.Players {
+						<li class="mb-2" style="display:flex;align-items:center;gap:0.5rem;">
+							if p.ID == currentPlayerID {
+								<strong>{ p.Name }</strong>
+							} else {
+								{ p.Name }
+							}
+							if p.IsExplainer {
+								<span class="tag is-info is-light" style="background:#1e3a5f;color:#93c5fd;">drawer</span>
+							} else {
+								<span class="tag is-light" style="background:#374151;color:#9ca3af;">guesser</span>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
+
+// ScoresFragment renders the scores section.
+templ ScoresFragment(snap viewmodel.SnapData) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Scores</h2>
+			if len(snap.Scores) == 0 {
+				<p class="has-text-grey" style="color:#6b7280;">No scores yet.</p>
+			} else {
+				<ol>
+					for _, s := range snap.Scores {
+						<li class="mb-1">
+							if s.Name == snap.CurrentPlayerName {
+								<strong>{ s.Name }</strong>: { strconv.Itoa(s.Points) }
+							} else {
+								{ s.Name }: { strconv.Itoa(s.Points) }
+							}
+						</li>
+					}
+				</ol>
+			}
+		</div>
+	</div>
+}
+
+func wordChars(word string) []string {
+	chars := make([]string, 0, len(word))
+	for _, r := range word {
+		chars = append(chars, string(r))
+	}
+	return chars
+}
+
+func wordBoxes(revealed string, wordLength int) []string {
+	if revealed != "" {
+		return wordChars(revealed)
+	}
+	boxes := make([]string, wordLength)
+	for i := range boxes {
+		boxes[i] = "_"
+	}
+	return boxes
+}
