@@ -5,9 +5,10 @@ import (
 
 	"dagame/internal/viewmodel"
 	"dagame/views/components"
+	"dagame/views/shared"
 )
 
-templ GamePage(data viewmodel.GamePage) {
+templ GamePage(data viewmodel.GamePage, scoresCard shared.ScoresCardData, playersCard shared.PlayersCardData) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -27,39 +28,15 @@ templ GamePage(data viewmodel.GamePage) {
 							<h1 class="title is-2">
 								<a href="/" class="has-text-dark">Unscrambler</a>
 							</h1>
-							<p class="subtitle">Invite others with this URL:</p>
-							<div class="notification is-light invite-url">
-								<div class="field has-addons">
-									<div class="control is-expanded">
-										<input class="input" type="text" value={data.InviteURL} readonly/>
-									</div>
-									<div class="control">
-										<button class="button is-info" type="button" data-copy-url={data.InviteURL}>Copy</button>
-									</div>
-								</div>
+							<div id="invite-region">
+								if !data.HasPlayer {
+									<p class="subtitle">Invite others with this URL:</p>
+									@shared.InviteBar(data.InviteURL, "notification is-light invite-url", "input")
+									@shared.JoinForm(data.GameID, data.InviteURL, templ.URL("/game/"+data.GameID+"/join"))
+								} else {
+									@shared.InviteRegion(data.Status, data.InviteURL, "notification is-light invite-url", "input", "Invite others with this URL:")
+								}
 							</div>
-
-							if !data.HasPlayer {
-								<div class="card">
-									<div class="card-content">
-										<h2 class="title is-5">Join the game</h2>
-										<form method="post" action={templ.URL("/game/" + data.GameID + "/join")}>
-											<div class="field">
-												<label class="label" for="username">Username</label>
-												<div class="control">
-													<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required/>
-												</div>
-											</div>
-											<div class="field">
-												<div class="control">
-													<button class="button is-primary" type="submit">Join game</button>
-												</div>
-											</div>
-										</form>
-									</div>
-								</div>
-							}
-
 							if data.HasPlayer {
 								<div id="round-area">
 									@components.RoundFragment(viewmodel.RoundFragment{
@@ -76,32 +53,17 @@ templ GamePage(data viewmodel.GamePage) {
 							}
 						</div>
 						<div class="column">
-						<div id="players-area">
-							@components.PlayersFragment(viewmodel.PlayersFragment{
-								Players: data.Players,
-								WordLength: data.WordLength,
-								PlayerName: data.PlayerName,
-							})
+						<div id="sidebar-dynamic">
+							@shared.PlayersCard(playersCard)
+							@components.ScrambleLobbyActions(data.ShowStart, data.GameID, data.PlayerCount, data.MinPlayers)
 						</div>
-							if data.ShowStart {
-								<form class="mt-4" method="post" action={templ.URL("/game/" + data.GameID + "/start")}>
-									<button class="button is-link is-fullwidth" type="submit">Start game</button>
-								</form>
-							}
 							<div class="content mt-4">
 								<p><strong>Rounds:</strong> {strconv.Itoa(data.Rounds)}</p>
 								<p><strong>Seconds per round:</strong> {strconv.Itoa(data.RoundDuration)}</p>
 							</div>
 						</div>
 						<div id="scores-area">
-							@components.ScoresFragment(viewmodel.ScoresFragment{
-								GameID: data.GameID,
-								Scores: data.Scores,
-								WinnerName: data.WinnerName,
-								Status: data.Status,
-								IsOwner: data.IsOwner,
-								PlayerName: data.PlayerName,
-							})
+							@shared.ScoresCard(scoresCard)
 						</div>
 					</div>
 				</div>

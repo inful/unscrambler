@@ -14,8 +14,10 @@ import (
 
 	"dagame/internal/draw/viewmodel"
 	"dagame/pkg/gamecommon"
+	"dagame/pkg/gameview"
 	"dagame/pkg/httputil"
 	drawviews "dagame/views/draw"
+	"dagame/views/shared"
 )
 
 const cookiePrefix = "draw_player"
@@ -88,7 +90,7 @@ func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request, g *Game, play
 	}
 	snap := g.Snapshot(time.Now().UTC(), playerID)
 	isOwner := g.IsOwner(playerID)
-	showStart := hasPlayer && isOwner && snap.Status == gamecommon.StatusLobby && len(g.Players) >= MinPlayers
+	showStart := hasPlayer && isOwner && snap.Status == gamecommon.StatusLobby && len(g.Players) >= gamecommon.MinPlayers
 
 	vm := snapToVM(snap, showStart, len(g.Players), playerName)
 	vm.StrokesJSON = mustMarshalStrokes(vm.Strokes)
@@ -100,7 +102,9 @@ func (h *Handler) gamePage(w http.ResponseWriter, r *http.Request, g *Game, play
 		PlayerID:   playerID,
 		Snap:       vm,
 	}
-	renderPage(w, r.Context(), drawviews.GamePage(data))
+	scoresCard := drawSnapToScoresCard(vm, gameID)
+	playersCard := drawSnapToPlayersCard(vm, playerID)
+	renderPage(w, r.Context(), drawviews.GamePage(data, scoresCard, playersCard))
 }
 
 func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
@@ -108,7 +112,7 @@ func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request, g *Game,
 	playerName, hasPlayer := g.PlayerName(playerID)
 	isOwner := g.IsOwner(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	showStart := hasPlayer && isOwner && snap.Status == gamecommon.StatusLobby && len(g.Players) >= MinPlayers
+	showStart := hasPlayer && isOwner && snap.Status == gamecommon.StatusLobby && len(g.Players) >= gamecommon.MinPlayers
 	vm := snapToVM(snap, showStart, len(g.Players), playerName)
 
 	renderFragment(w, r.Context(), drawviews.LobbyFragment(vm, gameID))
@@ -116,50 +120,36 @@ func (h *Handler) lobbyFragment(w http.ResponseWriter, r *http.Request, g *Game,
 
 func (h *Handler) joinGame(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	gameID := g.ID
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-	username := strings.TrimSpace(r.FormValue("username"))
-	if username == "" {
-		http.Error(w, "username required", http.StatusBadRequest)
-		return
-	}
-	if len(username) > 20 {
-		username = username[:20]
-	}
-	p := g.AddPlayer(username)
-	httputil.SetPlayerCookie(w, cookiePrefix+"_"+gameID, p.ID)
-	h.store.Publish(gameID, "players")
-	h.store.Publish(gameID, "lobby")
-	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
+	cookieName := func(id string) string { return cookiePrefix + "_" + id }
+	httputil.HandleJoin(w, r, httputil.JoinParams{
+		GameID:       gameID,
+		CookieName:   cookieName,
+		AddPlayer:    func(username string) string { return g.AddPlayer(username).ID },
+		Publish:      h.store.Publish,
+		RedirectPath: "/game/" + gameID,
+		AfterPublish: func() { h.store.Publish(gameID, "lobby") },
+	})
 }
 
 func (h *Handler) startGame(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	gameID := g.ID
-	if playerID == "" {
-		log.Printf("[draw] start: no player cookie for game %s", gameID)
-		http.Error(w, "not a player", http.StatusForbidden)
-		return
-	}
-	if !g.IsOwner(playerID) {
-		log.Printf("[draw] start: player %s is not owner of game %s", playerID, gameID)
-		http.Error(w, "not the owner", http.StatusForbidden)
-		return
-	}
-	if err := g.Start(time.Now().UTC()); err != nil {
-		log.Printf("[draw] start: %v", err)
-		http.Error(w, err.Error(), http.StatusConflict)
-		return
-	}
-	h.store.EnsureRoundLoop(gameID, g)
-	h.store.Publish(gameID, "lobby")
-	h.store.Publish(gameID, "round")
-	h.store.Publish(gameID, "canvas")
-	h.store.Publish(gameID, "wordhint")
-	h.store.Publish(gameID, "players")
-	h.store.Publish(gameID, "scores")
-	w.WriteHeader(http.StatusNoContent)
+	httputil.HandleStartGame(w, r, httputil.StartParams{
+		GameID:     gameID,
+		PlayerID:   playerID,
+		IsOwner:    func(_, pid string) bool { return g.IsOwner(pid) },
+		Start:      func() error { return g.Start(time.Now().UTC()) },
+		NoRedirect: true,
+		AfterStart: func() {
+			h.store.EnsureRoundLoop(gameID, g)
+			h.store.Publish(gameID, "lobby")
+			h.store.Publish(gameID, "round")
+			h.store.Publish(gameID, "drawtools")
+			h.store.Publish(gameID, "canvas")
+			h.store.Publish(gameID, "wordhint")
+			h.store.Publish(gameID, "players")
+			h.store.Publish(gameID, "scores")
+		},
+	})
 }
 
 func (h *Handler) stream(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
@@ -167,12 +157,26 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, g *Game, player
 	playerName, _ := g.PlayerName(playerID)
 	hub := h.store.Broadcaster(gameID)
 
+	inviteURL := httputil.BuildInviteURL(r, "/game/", gameID)
+	drawInviteClasses := func() (string, string) {
+		return "notification invite-url mb-4 draw-invite-bar", "input is-small draw-invite-input"
+	}
+	sendInvite := func(ctx context.Context, status string) {
+		if playerID != "" {
+			container, input := drawInviteClasses()
+			httputil.WriteSSE(w, "invite", renderComponent(ctx, shared.InviteRegion(status, inviteURL, container, input, "")))
+		}
+	}
+
 	onEvent := func(w http.ResponseWriter, ctx context.Context, event string) {
 		snap := g.Snapshot(time.Now().UTC(), playerID)
-		showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == gamecommon.StatusLobby && len(snap.Players) >= MinPlayers
+		showStart := playerID != "" && g.IsOwner(playerID) && snap.Status == gamecommon.StatusLobby && len(snap.Players) >= gamecommon.MinPlayers
 		vm := snapToVM(snap, showStart, len(snap.Players), playerName)
 
 		sendOne := func(name string, html string) { httputil.WriteSSE(w, name, html) }
+		sendDrawTools := func() {
+			sendOne("drawtools", renderComponent(ctx, drawviews.DrawToolsFragment(vm)))
+		}
 
 		switch event {
 		case "initial":
@@ -182,12 +186,14 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, g *Game, player
 			}
 			sendOne("lobby", lobbyHTML)
 			sendOne("round", renderComponent(ctx, drawviews.RoundFragment(vm)))
+			sendInvite(ctx, vm.Status)
+			sendDrawTools()
 			vmCanvas := vm
 			vmCanvas.StrokesJSON = mustMarshalStrokes(vm.Strokes)
-			sendOne("canvas", renderComponent(ctx, drawviews.CanvasFragment(vmCanvas, gameID)))
+			sendOne("canvas", renderComponent(ctx, drawviews.CanvasSurfaceFragment(vmCanvas, gameID)))
 			sendOne("wordhint", renderComponent(ctx, drawviews.WordHintFragment(vm, gameID)))
-			sendOne("players", renderComponent(ctx, drawviews.PlayersFragment(vm, playerID)))
-			sendOne("scores", renderComponent(ctx, drawviews.ScoresFragment(vm)))
+			sendOne("players", renderComponent(ctx, shared.PlayersCard(drawSnapToPlayersCard(vm, playerID))))
+			sendOne("scores", renderComponent(ctx, shared.ScoresCard(drawSnapToScoresCard(vm, gameID))))
 		case "lobby":
 			lobbyHTML := ""
 			if snap.Status == gamecommon.StatusLobby {
@@ -196,10 +202,12 @@ func (h *Handler) stream(w http.ResponseWriter, r *http.Request, g *Game, player
 			sendOne("lobby", lobbyHTML)
 		case "round":
 			sendOne("round", renderComponent(ctx, drawviews.RoundFragment(vm)))
+			sendInvite(ctx, vm.Status)
+			sendDrawTools()
 		case "canvas":
 			vmCanvas := vm
 			vmCanvas.StrokesJSON = mustMarshalStrokes(vm.Strokes)
-			sendOne("canvas", renderComponent(ctx, drawviews.CanvasFragment(vmCanvas, gameID)))
+			sendOne("canvas", renderComponent(ctx, drawviews.CanvasSurfaceFragment(vmCanvas, gameID)))
 		case "wordhint":
 			sendOne("wordhint", renderComponent(ctx, drawviews.WordHintFragment(vm, gameID)))
 		case "players":
@@ -239,13 +247,13 @@ func (h *Handler) wordHintFragment(w http.ResponseWriter, r *http.Request, g *Ga
 func (h *Handler) playersFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	renderFragment(w, r.Context(), drawviews.PlayersFragment(snapToVM(snap, false, 0, pname), playerID))
+	renderFragment(w, r.Context(), shared.PlayersCard(drawSnapToPlayersCard(snapToVM(snap, false, 0, pname), playerID)))
 }
 
 func (h *Handler) scoresFragment(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
 	pname, _ := g.PlayerName(playerID)
 	snap := g.Snapshot(time.Now().UTC(), playerID)
-	renderFragment(w, r.Context(), drawviews.ScoresFragment(snapToVM(snap, false, 0, pname)))
+	renderFragment(w, r.Context(), shared.ScoresCard(drawSnapToScoresCard(snapToVM(snap, false, 0, pname), g.ID)))
 }
 
 func (h *Handler) updateCanvas(w http.ResponseWriter, r *http.Request, g *Game, playerID string) {
@@ -312,6 +320,37 @@ func renderComponent(ctx context.Context, c templ.Component) string {
 	return buf.String()
 }
 
+func drawSnapToScoresCard(snap viewmodel.SnapData, gameID string) shared.ScoresCardData {
+	scores := make([]gameview.ScoreEntry, 0, len(snap.Scores))
+	for _, s := range snap.Scores {
+		scores = append(scores, gameview.ScoreEntry{Name: s.Name, Points: s.Points})
+	}
+	return shared.ScoresCardData{
+		Scores:             scores,
+		CurrentPlayerName:  snap.CurrentPlayerName,
+		WinnerName:         snap.WinnerName,
+		ShowRestart:        false,
+		GameID:             gameID,
+		Status:             snap.Status,
+	}
+}
+
+func drawSnapToPlayersCard(snap viewmodel.SnapData, currentPlayerID string) shared.PlayersCardData {
+	players := make([]gameview.PlayerInfo, 0, len(snap.Players))
+	for _, p := range snap.Players {
+		role := "guesser"
+		if p.IsExplainer {
+			role = "drawer"
+		}
+		players = append(players, gameview.PlayerInfo{ID: p.ID, Name: p.Name, Role: role})
+	}
+	return shared.PlayersCardData{
+		Players:         players,
+		CurrentPlayerID: currentPlayerID,
+		WordLength:      0,
+	}
+}
+
 func mustMarshalStrokes(strokes []viewmodel.DrawStrokeView) string {
 	b, err := json.Marshal(strokes)
 	if err != nil {
@@ -339,7 +378,7 @@ func snapToVM(snap Snapshot, showStart bool, playerCount int, currentPlayerName 
 		if color == "" {
 			color = "#000000"
 		}
-		strokes[i] = viewmodel.DrawStrokeView{Points: pts, Color: color}
+		strokes[i] = viewmodel.DrawStrokeView{Points: pts, Color: color, Type: st.Type}
 	}
 	var roundStartedMs, nextRoundAtMs int64
 	if !snap.RoundStarted.IsZero() {
@@ -368,7 +407,7 @@ func snapToVM(snap Snapshot, showStart bool, playerCount int, currentPlayerName 
 		Scores:           scores,
 		ShowStart:        showStart,
 		PlayerCount:      playerCount,
-		MinPlayers:       MinPlayers,
+		MinPlayers:       gamecommon.MinPlayers,
 		CurrentPlayerName: currentPlayerName,
 	}
 }

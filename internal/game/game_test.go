@@ -64,6 +64,7 @@ func TestGame_Start(t *testing.T) {
 	now := time.Now().UTC()
 	g := NewGame(1, time.Minute, "en")
 	g.AddPlayer("alice")
+	g.AddPlayer("bob")
 
 	err := g.Start(now)
 	if err != nil {
@@ -92,6 +93,7 @@ func TestGame_SubmitGuess(t *testing.T) {
 	now := time.Now().UTC()
 	g := NewGame(1, time.Minute, "en")
 	p := g.AddPlayer("alice")
+	g.AddPlayer("bob")
 	_ = g.Start(now)
 	round := g.CurrentRoundData()
 	if round.Word == "" {
@@ -124,6 +126,7 @@ func TestGame_SubmitGuess_WrongWord(t *testing.T) {
 	now := time.Now().UTC()
 	g := NewGame(1, time.Minute, "en")
 	p := g.AddPlayer("alice")
+	g.AddPlayer("bob")
 	_ = g.Start(now)
 	round := g.CurrentRoundData()
 	if round.Word == "" {
@@ -161,6 +164,7 @@ func TestGame_AdvanceIfNeeded(t *testing.T) {
 	now := time.Now().UTC()
 	g := NewGame(2, 50*time.Millisecond, "en")
 	g.AddPlayer("alice")
+	g.AddPlayer("bob")
 	_ = g.Start(now)
 
 	// Before round end: no change
@@ -195,6 +199,7 @@ func TestGame_NextTimer(t *testing.T) {
 	now := time.Now().UTC()
 	g := NewGame(1, time.Minute, "en")
 	g.AddPlayer("alice")
+	g.AddPlayer("bob")
 
 	// Not started
 	next, ok := g.NextTimer(now)

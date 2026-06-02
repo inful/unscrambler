@@ -12,7 +12,6 @@ import (
 	"dagame/pkg/realtime"
 )
 
-const MinPlayers = 2
 
 // Max strokes and points per stroke to avoid abuse.
 const (
@@ -83,6 +82,7 @@ type Point struct {
 type DrawStroke struct {
 	Points []Point `json:"points"`
 	Color  string  `json:"color,omitempty"` // hex e.g. "#000000"
+	Type   string  `json:"type,omitempty"`  // "fill" or empty (stroke)
 }
 
 // Player is the per-session player type for this game.
@@ -128,7 +128,7 @@ func (g *Game) Start(now time.Time) error {
 	if g.Status != gamecommon.StatusLobby {
 		return errors.New("game already started")
 	}
-	if len(g.Players) < MinPlayers {
+	if len(g.Players) < gamecommon.MinPlayers {
 		return errors.New("need at least 2 players")
 	}
 	g.Status = gamecommon.StatusInProgress
@@ -268,8 +268,14 @@ func (g *Game) UpdateCanvas(playerID string, strokes []DrawStroke) bool {
 	}
 	out := make([]DrawStroke, 0, n)
 	for i := 0; i < n; i++ {
+		strokeType := strokes[i].Type
 		pts := strokes[i].Points
-		if len(pts) > MaxPointsPerStroke {
+		if strokeType == "fill" {
+			if len(pts) == 0 {
+				continue
+			}
+			pts = []Point{{X: pts[0].X, Y: pts[0].Y}}
+		} else if len(pts) > MaxPointsPerStroke {
 			pts = append([]Point(nil), pts[:MaxPointsPerStroke]...)
 		} else {
 			pts = append([]Point(nil), pts...)
@@ -278,7 +284,7 @@ func (g *Game) UpdateCanvas(playerID string, strokes []DrawStroke) bool {
 		if color == "" {
 			color = "#000000"
 		}
-		out = append(out, DrawStroke{Points: pts, Color: color})
+		out = append(out, DrawStroke{Points: pts, Color: color, Type: strokeType})
 	}
 	g.Canvas = out
 	return true
@@ -469,6 +475,7 @@ func (g *Game) Snapshot(now time.Time, playerID string) Snapshot {
 		canvasCopy[i] = DrawStroke{
 			Points: append([]Point(nil), g.Canvas[i].Points...),
 			Color:  g.Canvas[i].Color,
+			Type:   g.Canvas[i].Type,
 		}
 	}
 

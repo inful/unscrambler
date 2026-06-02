@@ -12,9 +12,10 @@ import (
 	"strconv"
 
 	"dagame/internal/explain/viewmodel"
+	"dagame/views/shared"
 )
 
-func GamePage(data viewmodel.GamePageData) templ.Component {
+func GamePage(data viewmodel.GamePageData, scoresCard shared.ScoresCardData, playersCard shared.PlayersCardData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -50,7 +51,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.GameID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 22, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 23, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -61,79 +62,28 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !data.HasPlayer {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"columns is-centered\"><div class=\"column is-half\"><div class=\"card\"><div class=\"card-content\"><h2 class=\"title is-5\">Join the game</h2><form method=\"POST\" action=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"columns is-centered\"><div class=\"column is-half\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var3 templ.SafeURL
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/game/" + data.GameID + "/join"))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 32, Col: 82}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			templ_7745c5c3_Err = shared.JoinForm(data.GameID, data.InviteURL, templ.URL("/game/"+data.GameID+"/join")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><div class=\"field\"><label class=\"label\" for=\"username\">Your name</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"username\" name=\"username\" placeholder=\"Pick a name\" maxlength=\"20\" required autofocus></div></div><div class=\"field\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\">Join game</button></div></div></form><p class=\"help mt-3\">Invite a friend: ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 45, Col: 64}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p></div></div></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"invite-region\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if data.Snap.Status == "lobby" || data.Snap.Status == "finished" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div id=\"invite-bar\" class=\"notification is-light invite-url mb-4\"><div class=\"field has-addons\"><div class=\"control is-expanded\"><input id=\"invite-input\" class=\"input is-small\" type=\"text\" value=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var5 string
-				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 56, Col: 92}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" readonly></div><div class=\"control\"><button id=\"copy-btn\" class=\"button is-info is-small\" type=\"button\" data-url=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var6 string
-				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 63, Col: 36}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" onclick=\"(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)\">Copy</button></div></div></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div id=\"invite-bar\"></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+			templ_7745c5c3_Err = shared.InviteRegion(data.Snap.Status, data.InviteURL, "", "", "").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " <div class=\"columns\"><div class=\"column is-two-thirds\"><div id=\"lobby-actions\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div><div class=\"columns\"><div class=\"column is-two-thirds\"><div id=\"lobby-actions\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -141,7 +91,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><div id=\"canvas\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div id=\"canvas\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -149,7 +99,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div><div id=\"wordhint\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div id=\"wordhint\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -157,15 +107,15 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div></div><div class=\"column\"><div id=\"scores\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></div><div class=\"column\"><div id=\"scores\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ScoresFragment(data.Snap).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = shared.ScoresCard(scoresCard).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div><div id=\"round\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div id=\"round\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -173,56 +123,56 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if data.Snap.Status == "lobby" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"card mb-4\"><div class=\"card-content\"><h2 class=\"title is-6 mb-3\">Game settings</h2><div class=\"settings-item\"><span class=\"has-text-grey\">Rounds</span> <strong>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"card mb-4\"><div class=\"card-content\"><h2 class=\"title is-6 mb-3\">Game settings</h2><div class=\"settings-item\"><span class=\"has-text-grey\">Rounds</span> <strong>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var7 string
-				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(data.Snap.Rounds))
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(data.Snap.Rounds))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 99, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 64, Col: 44}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</strong></div><div class=\"settings-item\"><span class=\"has-text-grey\">Seconds per round</span> <strong>")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var8 string
-				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(data.Snap.RoundDurationSec))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 103, Col: 54}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</strong></div><div class=\"settings-item\"><span class=\"has-text-grey\">Seconds per round</span> <strong>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</strong></div></div></div>")
+				var templ_7745c5c3_Var4 string
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(data.Snap.RoundDurationSec))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/explain/game.templ`, Line: 68, Col: 54}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</strong></div></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div id=\"players\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div id=\"players\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = PlayersFragment(data.Snap, data.PlayerID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = shared.PlayersCard(playersCard).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></div></div><script>\n(function(){\nvar root=document.getElementById('game-root');\nvar gid=root.dataset.gameId;\nvar _dragging=false;\nvar _timerInterval=null;\n\nfunction cleanupCountdown(){\n  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }\n}\nfunction initCountdown(){\n  cleanupCountdown();\n  var el=document.querySelector('[data-round-timer]');\n  if(!el) return;\n  var startMs=Number(el.dataset.startMs||'0');\n  var durationSec=Number(el.dataset.durationSec||'0');\n  var nextRoundMs=Number(el.dataset.nextRoundMs||'0');\n  if(!startMs||!durationSec) return;\n  var endMs=startMs+durationSec*1000;\n  var timerEl=el.querySelector('[data-timer]');\n  var nextTimerEl=el.querySelector('[data-next-timer]');\n  var tick=function(){\n    var now=Date.now();\n    if(timerEl){ timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+'s'; }\n    if(nextTimerEl&&nextRoundMs){ nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+'s'; }\n  };\n  tick();\n  _timerInterval=setInterval(tick,1000);\n}\ninitCountdown();\n\nvar src=new EventSource(\"/game/\"+gid+\"/stream\");\nsrc.addEventListener(\"lobby\",   function(e){ var el=document.getElementById(\"lobby-actions\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"round\",   function(e){\n  cleanupCountdown();\n  var el=document.getElementById(\"round\");\n  if(el) el.innerHTML=e.data;\n  initCountdown();\n  var bar=document.getElementById(\"invite-bar\");\n  if(bar){ bar.style.display=el&&el.querySelector(\"[data-round-timer]\")?\"none\":\"\"; }\n});\nsrc.addEventListener(\"canvas\",  function(e){ if(_dragging) return; var el=document.getElementById(\"canvas\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"wordhint\",function(e){ var el=document.getElementById(\"wordhint\");      if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"players\", function(e){ var el=document.getElementById(\"players\");       if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"scores\",  function(e){ var el=document.getElementById(\"scores\");        if(el) el.innerHTML=e.data; });\n\nfunction collectItems(area){\n  var items=[];\n  area.querySelectorAll(\".canvas-emoji\").forEach(function(el){\n    items.push({ID:el.dataset.id,Emoji:el.dataset.emoji,X:parseFloat(el.style.left)||0,Y:parseFloat(el.style.top)||0});\n  });\n  return items;\n}\nfunction saveCanvas(items){\n  fetch(\"/game/\"+gid+\"/canvas\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(items)});\n}\n\ndocument.body.addEventListener(\"dragstart\",function(e){\n  var btn=e.target.closest(\".emoji-btn\");\n  if(!btn) return;\n  e.dataTransfer.setData(\"text/plain\",btn.dataset.emoji);\n  e.dataTransfer.effectAllowed=\"copy\";\n});\ndocument.body.addEventListener(\"dragover\",function(e){\n  if(e.target.closest(\"#canvas-area\")){ e.preventDefault(); e.dataTransfer.dropEffect=\"copy\"; }\n});\ndocument.body.addEventListener(\"drop\",function(e){\n  var area=e.target.closest(\"#canvas-area\");\n  if(!area) return;\n  var emoji=e.dataTransfer.getData(\"text/plain\");\n  if(!emoji) return;\n  e.preventDefault();\n  var rect=area.getBoundingClientRect();\n  var x=e.clientX-rect.left-16;\n  var y=e.clientY-rect.top-16;\n  var id=\"e\"+Date.now()+\"-\"+Math.random().toString(36).slice(2);\n  var span=document.createElement(\"span\");\n  span.className=\"canvas-emoji\";\n  span.dataset.id=id; span.dataset.emoji=emoji;\n  span.style.cssText=\"position:absolute;left:\"+x+\"px;top:\"+y+\"px;font-size:2rem;cursor:grab;user-select:none;\";\n  span.textContent=emoji;\n  area.appendChild(span);\n  saveCanvas(collectItems(area));\n});\n\nvar _drag=null;\ndocument.body.addEventListener(\"mousedown\",function(e){\n  var el=e.target.closest(\".canvas-emoji\");\n  if(!el) return;\n  var area=el.closest(\"#canvas-area\");\n  if(!area) return;\n  e.preventDefault();\n  _dragging=true;\n  var er=el.getBoundingClientRect();\n  _drag={el:el,area:area,ox:e.clientX-er.left,oy:e.clientY-er.top};\n  el.style.zIndex=\"100\"; el.style.cursor=\"grabbing\";\n});\ndocument.addEventListener(\"mousemove\",function(e){\n  if(!_drag) return;\n  var ar=_drag.area.getBoundingClientRect();\n  _drag.el.style.left=(e.clientX-ar.left-_drag.ox)+\"px\";\n  _drag.el.style.top =(e.clientY-ar.top -_drag.oy)+\"px\";\n});\ndocument.addEventListener(\"mouseup\",function(){\n  if(!_drag) return;\n  _drag.el.style.zIndex=\"\"; _drag.el.style.cursor=\"grab\";\n  saveCanvas(collectItems(_drag.area));\n  _drag=null; _dragging=false;\n});\n})();\n\t\t\t\t\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div></div><script>\n(function(){\nvar root=document.getElementById('game-root');\nvar gid=root.dataset.gameId;\nvar _dragging=false;\nvar _timerInterval=null;\n\nfunction cleanupCountdown(){\n  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }\n}\nfunction initCountdown(){\n  cleanupCountdown();\n  var el=document.querySelector('[data-round-timer]');\n  if(!el) return;\n  var startMs=Number(el.dataset.startMs||'0');\n  var durationSec=Number(el.dataset.durationSec||'0');\n  var nextRoundMs=Number(el.dataset.nextRoundMs||'0');\n  if(!startMs||!durationSec) return;\n  var endMs=startMs+durationSec*1000;\n  var timerEl=el.querySelector('[data-timer]');\n  var nextTimerEl=el.querySelector('[data-next-timer]');\n  var tick=function(){\n    var now=Date.now();\n    if(timerEl){ timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+'s'; }\n    if(nextTimerEl&&nextRoundMs){ nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+'s'; }\n  };\n  tick();\n  _timerInterval=setInterval(tick,1000);\n}\ninitCountdown();\n\nvar src=new EventSource(\"/game/\"+gid+\"/stream\");\nsrc.addEventListener(\"lobby\",   function(e){ var el=document.getElementById(\"lobby-actions\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"round\",   function(e){\n  cleanupCountdown();\n  var el=document.getElementById(\"round\");\n  if(el) el.innerHTML=e.data;\n  initCountdown();\n});\nsrc.addEventListener(\"invite\", function(e){ var el=document.getElementById(\"invite-region\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"canvas\",  function(e){ if(_dragging) return; var el=document.getElementById(\"canvas\"); if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"wordhint\",function(e){ var el=document.getElementById(\"wordhint\");      if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"players\", function(e){ var el=document.getElementById(\"players\");       if(el) el.innerHTML=e.data; });\nsrc.addEventListener(\"scores\",  function(e){ var el=document.getElementById(\"scores\");        if(el) el.innerHTML=e.data; });\n\nfunction collectItems(area){\n  var items=[];\n  area.querySelectorAll(\".canvas-emoji\").forEach(function(el){\n    items.push({ID:el.dataset.id,Emoji:el.dataset.emoji,X:parseFloat(el.style.left)||0,Y:parseFloat(el.style.top)||0});\n  });\n  return items;\n}\nfunction saveCanvas(items){\n  fetch(\"/game/\"+gid+\"/canvas\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify(items)});\n}\n\ndocument.body.addEventListener(\"dragstart\",function(e){\n  var btn=e.target.closest(\".emoji-btn\");\n  if(!btn) return;\n  e.dataTransfer.setData(\"text/plain\",btn.dataset.emoji);\n  e.dataTransfer.effectAllowed=\"copy\";\n});\ndocument.body.addEventListener(\"dragover\",function(e){\n  if(e.target.closest(\"#canvas-area\")){ e.preventDefault(); e.dataTransfer.dropEffect=\"copy\"; }\n});\ndocument.body.addEventListener(\"drop\",function(e){\n  var area=e.target.closest(\"#canvas-area\");\n  if(!area) return;\n  var emoji=e.dataTransfer.getData(\"text/plain\");\n  if(!emoji) return;\n  e.preventDefault();\n  var rect=area.getBoundingClientRect();\n  var x=e.clientX-rect.left-16;\n  var y=e.clientY-rect.top-16;\n  var id=\"e\"+Date.now()+\"-\"+Math.random().toString(36).slice(2);\n  var span=document.createElement(\"span\");\n  span.className=\"canvas-emoji\";\n  span.dataset.id=id; span.dataset.emoji=emoji;\n  span.style.cssText=\"position:absolute;left:\"+x+\"px;top:\"+y+\"px;font-size:2rem;cursor:grab;user-select:none;\";\n  span.textContent=emoji;\n  area.appendChild(span);\n  saveCanvas(collectItems(area));\n});\n\nvar _drag=null;\ndocument.body.addEventListener(\"mousedown\",function(e){\n  var el=e.target.closest(\".canvas-emoji\");\n  if(!el) return;\n  var area=el.closest(\"#canvas-area\");\n  if(!area) return;\n  e.preventDefault();\n  _dragging=true;\n  var er=el.getBoundingClientRect();\n  _drag={el:el,area:area,ox:e.clientX-er.left,oy:e.clientY-er.top};\n  el.style.zIndex=\"100\"; el.style.cursor=\"grabbing\";\n});\ndocument.addEventListener(\"mousemove\",function(e){\n  if(!_drag) return;\n  var ar=_drag.area.getBoundingClientRect();\n  _drag.el.style.left=(e.clientX-ar.left-_drag.ox)+\"px\";\n  _drag.el.style.top =(e.clientY-ar.top -_drag.oy)+\"px\";\n});\ndocument.addEventListener(\"mouseup\",function(){\n  if(!_drag) return;\n  _drag.el.style.zIndex=\"\"; _drag.el.style.cursor=\"grab\";\n  saveCanvas(collectItems(_drag.area));\n  _drag=null; _dragging=false;\n});\n})();\n\t\t\t\t\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div></section></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></section></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

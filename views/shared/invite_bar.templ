@@ -1,0 +1,36 @@
+package shared
+
+func defaultInviteContainerClass(c string) string {
+	if c == "" {
+		return "notification is-light invite-url mb-4"
+	}
+	return c
+}
+
+func defaultInviteInputClass(c string) string {
+	if c == "" {
+		return "input is-small"
+	}
+	return c
+}
+
+// InviteBar renders the invite URL input and Copy button.
+// ContainerClass and InputClass allow theming (e.g. dark style); leave empty for default Bulma.
+templ InviteBar(inviteURL string, containerClass string, inputClass string) {
+	<div id="invite-bar" class={ defaultInviteContainerClass(containerClass) }>
+		<div class="field has-addons">
+			<div class="control is-expanded">
+				<input id="invite-input" class={ defaultInviteInputClass(inputClass) } type="text" value={ inviteURL } readonly/>
+			</div>
+			<div class="control">
+				<button
+					id="copy-btn"
+					class="button is-info is-small"
+					type="button"
+					data-url={ inviteURL }
+					onclick="(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)"
+				>Copy</button>
+			</div>
+		</div>
+	</div>
+}

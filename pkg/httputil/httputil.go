@@ -10,6 +10,89 @@ import (
 	"time"
 )
 
+const maxUsernameLen = 20
+
+// ParseJoinForm parses the request form and returns a validated username.
+// It returns an error if the form is invalid or username is empty after trim.
+// Username is trimmed and truncated to maxUsernameLen (20) characters.
+func ParseJoinForm(r *http.Request) (username string, err error) {
+	if err := r.ParseForm(); err != nil {
+		return "", err
+	}
+	username = strings.TrimSpace(r.FormValue("username"))
+	if username == "" {
+		return "", errors.New("username required")
+	}
+	if len(username) > maxUsernameLen {
+		username = username[:maxUsernameLen]
+	}
+	return username, nil
+}
+
+// JoinParams holds parameters for HandleJoin.
+type JoinParams struct {
+	GameID       string
+	CookieName   func(gameID string) string
+	AddPlayer    func(username string) (playerID string)
+	Publish      func(gameID, event string)
+	RedirectPath string
+	// AfterPublish is called after Publish(gameID, "players"), before redirect (e.g. publish more events).
+	AfterPublish func()
+}
+
+// HandleJoin parses the join form, adds the player, sets the cookie, publishes
+// "players", and redirects to RedirectPath. On parse/validation error returns 400.
+func HandleJoin(w http.ResponseWriter, r *http.Request, p JoinParams) {
+	username, err := ParseJoinForm(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	playerID := p.AddPlayer(username)
+	SetPlayerCookie(w, p.CookieName(p.GameID), playerID)
+	p.Publish(p.GameID, "players")
+	if p.AfterPublish != nil {
+		p.AfterPublish()
+	}
+	http.Redirect(w, r, p.RedirectPath, http.StatusSeeOther)
+}
+
+// StartParams holds parameters for HandleStartGame.
+type StartParams struct {
+	GameID     string
+	PlayerID   string
+	IsOwner    func(gameID, playerID string) bool
+	Start      func() error
+	AfterStart func()
+	// NoRedirect: if true, write 204 on success (for fetch/HTMX); otherwise redirect to game page.
+	NoRedirect bool
+}
+
+// HandleStartGame checks that the player is the owner, calls Start(), then
+// AfterStart() (e.g. ensure round loop + publish). If not owner, redirects to
+// game page. On success: if NoRedirect, writes 204; otherwise redirects.
+func HandleStartGame(w http.ResponseWriter, r *http.Request, p StartParams) {
+	if p.PlayerID == "" || !p.IsOwner(p.GameID, p.PlayerID) {
+		http.Redirect(w, r, "/game/"+p.GameID, http.StatusSeeOther)
+		return
+	}
+	if err := p.Start(); err != nil {
+		// Already started (e.g. double-submit or two tabs) → redirect to game page
+		if strings.Contains(err.Error(), "already started") {
+			http.Redirect(w, r, "/game/"+p.GameID, http.StatusSeeOther)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	p.AfterStart()
+	if p.NoRedirect {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	http.Redirect(w, r, "/game/"+p.GameID, http.StatusSeeOther)
+}
+
 // ErrStreamingUnsupported is returned by SSEStream when the response writer
 // does not implement http.Flusher.
 var ErrStreamingUnsupported = errors.New("streaming unsupported")

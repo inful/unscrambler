@@ -4,9 +4,10 @@ import (
 	"strconv"
 
 	"dagame/internal/explain/viewmodel"
+	"dagame/views/shared"
 )
 
-templ GamePage(data viewmodel.GamePageData) {
+templ GamePage(data viewmodel.GamePageData, scoresCard shared.ScoresCardData, playersCard shared.PlayersCardData) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -26,49 +27,13 @@ templ GamePage(data viewmodel.GamePageData) {
 					if !data.HasPlayer {
 						<div class="columns is-centered">
 							<div class="column is-half">
-								<div class="card">
-									<div class="card-content">
-										<h2 class="title is-5">Join the game</h2>
-										<form method="POST" action={ templ.URL("/game/" + data.GameID + "/join") }>
-											<div class="field">
-												<label class="label" for="username">Your name</label>
-												<div class="control">
-													<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required autofocus/>
-												</div>
-											</div>
-											<div class="field">
-												<div class="control">
-													<button type="submit" class="button is-primary">Join game</button>
-												</div>
-											</div>
-										</form>
-										<p class="help mt-3">Invite a friend: { data.InviteURL }</p>
-									</div>
-								</div>
+								@shared.JoinForm(data.GameID, data.InviteURL, templ.URL("/game/"+data.GameID+"/join"))
 							</div>
 						</div>
 					} else {
-						// Invite URL bar — visible in lobby and after the game ends
-						if data.Snap.Status == "lobby" || data.Snap.Status == "finished" {
-							<div id="invite-bar" class="notification is-light invite-url mb-4">
-								<div class="field has-addons">
-									<div class="control is-expanded">
-										<input id="invite-input" class="input is-small" type="text" value={ data.InviteURL } readonly/>
-									</div>
-									<div class="control">
-										<button
-											id="copy-btn"
-											class="button is-info is-small"
-											type="button"
-											data-url={ data.InviteURL }
-											onclick="(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)"
-										>Copy</button>
-									</div>
-								</div>
-							</div>
-						} else {
-							<div id="invite-bar"></div>
-						}
+						<div id="invite-region">
+							@shared.InviteRegion(data.Snap.Status, data.InviteURL, "", "", "")
+						</div>
 						<div class="columns">
 							// ── Main column ────────────────────────────────────────────────
 							<div class="column is-two-thirds">
@@ -85,7 +50,7 @@ templ GamePage(data viewmodel.GamePageData) {
 							// ── Sidebar ─────────────────────────────────────────────────────
 							<div class="column">
 								<div id="scores" class="mb-4">
-									@ScoresFragment(data.Snap)
+									@shared.ScoresCard(scoresCard)
 								</div>
 								<div id="round" class="mb-4">
 									@RoundFragment(data.Snap)
@@ -106,7 +71,7 @@ templ GamePage(data viewmodel.GamePageData) {
 									</div>
 								}
 								<div id="players" class="mb-4">
-									@PlayersFragment(data.Snap, data.PlayerID)
+									@shared.PlayersCard(playersCard)
 								</div>
 							</div>
 						</div>
@@ -148,9 +113,8 @@ src.addEventListener("round",   function(e){
   var el=document.getElementById("round");
   if(el) el.innerHTML=e.data;
   initCountdown();
-  var bar=document.getElementById("invite-bar");
-  if(bar){ bar.style.display=el&&el.querySelector("[data-round-timer]")?"none":""; }
 });
+src.addEventListener("invite", function(e){ var el=document.getElementById("invite-region"); if(el) el.innerHTML=e.data; });
 src.addEventListener("canvas",  function(e){ if(_dragging) return; var el=document.getElementById("canvas"); if(el) el.innerHTML=e.data; });
 src.addEventListener("wordhint",function(e){ var el=document.getElementById("wordhint");      if(el) el.innerHTML=e.data; });
 src.addEventListener("players", function(e){ var el=document.getElementById("players");       if(el) el.innerHTML=e.data; });

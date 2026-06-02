@@ -18,6 +18,7 @@ type Point struct {
 type DrawStrokeView struct {
 	Points []Point `json:"points"`
 	Color  string  `json:"color,omitempty"`
+	Type   string  `json:"type,omitempty"`
 }
 
 // ScoreEntry holds one player's running score.

@@ -3,6 +3,7 @@ package game
 import (
 	"errors"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -90,6 +91,9 @@ func (g *Game) Start(now time.Time) error {
 	defer g.Mu.Unlock()
 	if g.Status != gamecommon.StatusLobby {
 		return errors.New("game already started")
+	}
+	if len(g.Players) < gamecommon.MinPlayers {
+		return errors.New("need at least " + strconv.Itoa(gamecommon.MinPlayers) + " players to start")
 	}
 	g.Status = gamecommon.StatusInProgress
 	g.TimedRounds.Start(now)

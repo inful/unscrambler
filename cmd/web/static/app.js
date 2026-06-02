@@ -156,16 +156,22 @@
 		const streamUrl = root.dataset.streamUrl;
 		if (!streamUrl) return;
 		const roundArea = document.getElementById("round-area");
-		const playersArea = document.getElementById("players-area");
+		const sidebarDynamic = document.getElementById("sidebar-dynamic");
 		const scoresArea = document.getElementById("scores-area");
+		const inviteRegion = document.getElementById("invite-region");
 
 		const source = new EventSource(streamUrl);
 		source.addEventListener("round", (event) => {
 			replaceRoundArea(roundArea, event.data);
 		});
+		source.addEventListener("invite", (event) => {
+			if (inviteRegion) {
+				inviteRegion.innerHTML = event.data;
+			}
+		});
 		source.addEventListener("players", (event) => {
-			if (playersArea) {
-				playersArea.innerHTML = event.data;
+			if (sidebarDynamic) {
+				sidebarDynamic.innerHTML = event.data;
 			}
 		});
 		source.addEventListener("scores", (event) => {

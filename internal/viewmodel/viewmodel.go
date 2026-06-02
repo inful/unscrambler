@@ -19,6 +19,8 @@ type GamePage struct {
 	RoundDuration  int
 	Status         string
 	ShowStart      bool
+	PlayerCount    int   // used for "Waiting for more players — need at least X, have Y"
+	MinPlayers     int   // minimum required to show Start button
 	Scores         []ScoreEntry
 	WinnerName     string
 	CurrentRound   int

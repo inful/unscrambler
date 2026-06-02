@@ -12,9 +12,10 @@ import (
 	"strconv"
 
 	"dagame/internal/draw/viewmodel"
+	"dagame/views/shared"
 )
 
-func GamePage(data viewmodel.GamePageData) templ.Component {
+func GamePage(data viewmodel.GamePageData, scoresCard shared.ScoresCardData, playersCard shared.PlayersCardData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -50,7 +51,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.GameID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 22, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 23, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -61,75 +62,28 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !data.HasPlayer {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"columns is-centered\"><div class=\"column is-half\"><div class=\"card\"><div class=\"card-content\"><h2 class=\"title is-5\">Join the game</h2><form method=\"POST\" action=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"columns is-centered\"><div class=\"column is-half\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var3 templ.SafeURL
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/game/" + data.GameID + "/join"))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 32, Col: 82}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			templ_7745c5c3_Err = shared.JoinForm(data.GameID, data.InviteURL, templ.URL("/game/"+data.GameID+"/join")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><div class=\"field\"><label class=\"label\" for=\"username\">Your name</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"username\" name=\"username\" placeholder=\"Pick a name\" maxlength=\"20\" required autofocus></div></div><div class=\"field\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\">Join game</button></div></div></form><p class=\"help mt-3\">Invite a friend: ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 45, Col: 64}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p></div></div></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			if data.Snap.Status == "lobby" || data.Snap.Status == "finished" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div id=\"invite-bar\" class=\"notification is-light invite-url mb-4\" style=\"background:#374151;\"><div class=\"field has-addons\"><div class=\"control is-expanded\"><input id=\"invite-input\" class=\"input is-small\" type=\"text\" value=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var5 string
-				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 55, Col: 92}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" readonly style=\"background:#1f2937;color:#f3f4f6;\"></div><div class=\"control\"><button id=\"copy-btn\" class=\"button is-info is-small\" type=\"button\" data-url=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var6 string
-				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.InviteURL)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 62, Col: 36}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" onclick=\"(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)\">Copy</button></div></div></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div id=\"invite-bar\"></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"invite-region\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " <div class=\"columns\"><div class=\"column is-two-thirds\"><div id=\"lobby-actions\" class=\"mb-4\">")
+			templ_7745c5c3_Err = shared.InviteRegion(data.Snap.Status, data.InviteURL, "notification invite-url mb-4 draw-invite-bar", "input is-small draw-invite-input", "").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div><div class=\"columns\"><div class=\"column is-two-thirds\"><div id=\"lobby-actions\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -137,7 +91,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div><div id=\"canvas\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div id=\"canvas\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -145,7 +99,7 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><div id=\"wordhint\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div id=\"wordhint\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -153,15 +107,15 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div><div class=\"column\"><div id=\"scores\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></div><div class=\"column\"><div id=\"scores\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ScoresFragment(data.Snap).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = shared.ScoresCard(scoresCard).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div><div id=\"round\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div id=\"round\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -169,56 +123,56 @@ func GamePage(data viewmodel.GamePageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if data.Snap.Status == "lobby" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"card mb-4\"><div class=\"card-content\"><h2 class=\"title is-6 mb-3\">Game settings</h2><div class=\"settings-item\"><span class=\"has-text-grey\">Rounds</span> <strong>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"card mb-4\"><div class=\"card-content\"><h2 class=\"title is-6 mb-3\">Game settings</h2><div class=\"settings-item\"><span class=\"has-text-grey\">Rounds</span> <strong>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var7 string
-				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.Snap.Rounds))
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.Snap.Rounds))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 96, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 62, Col: 52}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</strong></div><div class=\"settings-item\"><span class=\"has-text-grey\">Seconds per round</span> <strong>")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var8 string
-				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.Snap.RoundDurationSec))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 100, Col: 62}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</strong></div><div class=\"settings-item\"><span class=\"has-text-grey\">Seconds per round</span> <strong>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</strong></div></div></div>")
+				var templ_7745c5c3_Var4 string
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.Snap.RoundDurationSec))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/draw/game.templ`, Line: 66, Col: 62}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</strong></div></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div id=\"players\" class=\"mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div id=\"players\" class=\"mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = PlayersFragment(data.Snap, data.PlayerID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = shared.PlayersCard(playersCard).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div></div></div><script type=\"text/javascript\">\n(function(){\nvar root=document.getElementById(\"game-root\");\nvar gid=root&&root.dataset.gameId;\nvar _timerInterval=null;\nfunction cleanupCountdown(){\n  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }\n}\nfunction initCountdown(){\n  cleanupCountdown();\n  var el=document.querySelector(\"[data-round-timer]\");\n  if(!el) return;\n  var startMs=Number(el.dataset.startMs||\"0\");\n  var durationSec=Number(el.dataset.durationSec||\"0\");\n  var nextRoundMs=Number(el.dataset.nextRoundMs||\"0\");\n  if(!startMs||!durationSec) return;\n  var endMs=startMs+durationSec*1000;\n  var timerEl=el?el.querySelector(\"[data-timer]\"):null;\n  var nextTimerEl=el?el.querySelector(\"[data-next-timer]\"):null;\n  var tick=function(){\n    var now=Date.now();\n    if(timerEl) timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+\"s\";\n    if(nextTimerEl&&nextRoundMs) nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+\"s\";\n  };\n  tick();\n  _timerInterval=setInterval(tick,1000);\n}\ninitCountdown();\n\nvar DrawGame={\n  currentColor: \"#000000\",\n  redraw: function(canvas, strokes){\n    if(!canvas) return;\n    var ctx=canvas.getContext(\"2d\");\n    if(!ctx) return;\n    ctx.fillStyle=\"#fff\";\n    ctx.fillRect(0,0,canvas.width,canvas.height);\n    ctx.lineWidth=3;\n    ctx.lineCap=\"round\";\n    ctx.lineJoin=\"round\";\n    for(var s=0;s<strokes.length;s++){\n      var stroke=strokes[s];\n      var pts=stroke.points||stroke.Points||[];\n      if(pts.length<2) continue;\n      ctx.strokeStyle=stroke.color||stroke.Color||\"#000000\";\n      ctx.beginPath();\n      ctx.moveTo(pts[0].x||pts[0].X, pts[0].y||pts[0].Y);\n      for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x||pts[i].X, pts[i].y||pts[i].Y);\n      ctx.stroke();\n    }\n  },\n  attachDrawing: function(canvas, postUrl, container){\n    if(!canvas||!postUrl||!container) return;\n    canvas.classList.remove(\"readonly\");\n    var ctx=canvas.getContext(\"2d\");\n    if(!ctx) return;\n    var currentStroke=[];\n    function getXY(e){\n      var r=canvas.getBoundingClientRect();\n      var scaleX=canvas.width/r.width, scaleY=canvas.height/r.height;\n      return { x:(e.clientX-r.left)*scaleX, y:(e.clientY-r.top)*scaleY };\n    }\n    function drawAll(){\n      var json=container.getAttribute(\"data-strokes\")||\"[]\";\n      var strokes=[];\n      try{ strokes=JSON.parse(json); }catch(e){}\n      DrawGame.redraw(canvas, strokes);\n      if(currentStroke.length>=2){\n        ctx.strokeStyle=DrawGame.currentColor||\"#000000\";\n        ctx.lineWidth=3;\n        ctx.lineCap=\"round\";\n        ctx.lineJoin=\"round\";\n        ctx.beginPath();\n        ctx.moveTo(currentStroke[0].x, currentStroke[0].y);\n        for(var i=1;i<currentStroke.length;i++) ctx.lineTo(currentStroke[i].x, currentStroke[i].y);\n        ctx.stroke();\n      }\n    }\n    function sendStrokes(){\n      var json=container.getAttribute(\"data-strokes\")||\"[]\";\n      var strokes=[];\n      try{ strokes=JSON.parse(json); }catch(e){}\n      strokes.push({ points: currentStroke, color: DrawGame.currentColor||\"#000000\" });\n      fetch(postUrl,{ method:\"POST\", headers:{\"Content-Type\":\"application/json\"}, body:JSON.stringify(strokes) });\n    }\n    canvas.onmousedown=function(e){\n      e.preventDefault();\n      currentStroke=[getXY(e)];\n      drawAll();\n    };\n    canvas.onmousemove=function(e){\n      if(currentStroke.length>0){\n        currentStroke.push(getXY(e));\n        drawAll();\n      }\n    };\n    canvas.onmouseup=function(e){\n      if(currentStroke.length>0){ sendStrokes(); currentStroke=[]; }\n    };\n    canvas.onmouseleave=function(e){\n      if(currentStroke.length>0){ sendStrokes(); currentStroke=[]; }\n    };\n  },\n  undo: function(){\n    var container=document.getElementById(\"draw-canvas-container\");\n    if(!container) return;\n    var postUrl=container.getAttribute(\"data-canvas-post\");\n    if(!postUrl) return;\n    var json=container.getAttribute(\"data-strokes\")||\"[]\";\n    var strokes=[];\n    try{ strokes=JSON.parse(json); }catch(e){}\n    if(strokes.length===0) return;\n    strokes.pop();\n    fetch(postUrl,{ method:\"POST\", headers:{\"Content-Type\":\"application/json\"}, body:JSON.stringify(strokes) });\n  },\n  clear: function(){\n    var container=document.getElementById(\"draw-canvas-container\");\n    if(!container) return;\n    var postUrl=container.getAttribute(\"data-canvas-post\");\n    if(!postUrl) return;\n    fetch(postUrl,{ method:\"POST\", headers:{\"Content-Type\":\"application/json\"}, body:\"[]\" });\n  },\n  initCanvas: function(){\n    var container=document.getElementById(\"draw-canvas-container\");\n    if(!container) return;\n    var canvas=document.getElementById(\"draw-canvas\");\n    if(!canvas) return;\n    var strokesJson=container.getAttribute(\"data-strokes\")||\"[]\";\n    var strokes=[];\n    try{ strokes=JSON.parse(strokesJson); }catch(e){}\n    this.redraw(canvas, strokes);\n    var isExplainer=container.getAttribute(\"data-is-explainer\")===\"true\";\n    var postUrl=container.getAttribute(\"data-canvas-post\")||\"\";\n    canvas.onmousedown=null;\n    canvas.onmousemove=null;\n    canvas.onmouseup=null;\n    canvas.onmouseleave=null;\n    canvas.classList.remove(\"readonly\");\n    var canvasSection=document.getElementById(\"canvas\");\n    if(canvasSection) canvasSection.querySelectorAll(\".draw-color-btn\").forEach(function(btn){\n      btn.classList.remove(\"is-selected\");\n      if(btn.dataset.drawColor===DrawGame.currentColor) btn.classList.add(\"is-selected\");\n      btn.onclick=function(){\n        DrawGame.currentColor=this.dataset.drawColor||\"#000000\";\n        canvasSection.querySelectorAll(\".draw-color-btn\").forEach(function(b){ b.classList.remove(\"is-selected\"); });\n        this.classList.add(\"is-selected\");\n      };\n    });\n    if(isExplainer&&postUrl) this.attachDrawing(canvas, postUrl, container);\n    else canvas.classList.add(\"readonly\");\n  }\n};\nwindow.DrawGame=DrawGame;\n\nif(gid){\n  var src=new EventSource(\"/game/\"+gid+\"/stream\");\n  src.addEventListener(\"lobby\", function(e){ var el=document.getElementById(\"lobby-actions\"); if(el) el.innerHTML=e.data; });\n  src.addEventListener(\"round\", function(e){\n    cleanupCountdown();\n    var el=document.getElementById(\"round\");\n    if(el) el.innerHTML=e.data;\n    initCountdown();\n    var bar=document.getElementById(\"invite-bar\");\n    if(bar) bar.style.display=el&&el.querySelector(\"[data-round-timer]\")?\"none\":\"\";\n  });\n  src.addEventListener(\"canvas\", function(e){\n    var el=document.getElementById(\"canvas\");\n    if(el){ el.innerHTML=e.data; DrawGame.initCanvas(); }\n  });\n  src.addEventListener(\"wordhint\", function(e){ var el=document.getElementById(\"wordhint\"); if(el) el.innerHTML=e.data; });\n  src.addEventListener(\"players\", function(e){ var el=document.getElementById(\"players\"); if(el) el.innerHTML=e.data; });\n  src.addEventListener(\"scores\", function(e){ var el=document.getElementById(\"scores\"); if(el) el.innerHTML=e.data; });\n}\nsetTimeout(function(){ DrawGame.initCanvas(); }, 0);\n})();\n\t\t\t\t\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div></div><script type=\"text/javascript\">\n(function(){\nvar root=document.getElementById(\"game-root\");\nvar gid=root&&root.dataset.gameId;\nvar _timerInterval=null;\nfunction cleanupCountdown(){\n  if(_timerInterval){ clearInterval(_timerInterval); _timerInterval=null; }\n}\nfunction initCountdown(){\n  cleanupCountdown();\n  var el=document.querySelector(\"[data-round-timer]\");\n  if(!el) return;\n  var startMs=Number(el.dataset.startMs||\"0\");\n  var durationSec=Number(el.dataset.durationSec||\"0\");\n  var nextRoundMs=Number(el.dataset.nextRoundMs||\"0\");\n  if(!startMs||!durationSec) return;\n  var endMs=startMs+durationSec*1000;\n  var timerEl=el?el.querySelector(\"[data-timer]\"):null;\n  var nextTimerEl=el?el.querySelector(\"[data-next-timer]\"):null;\n  var tick=function(){\n    var now=Date.now();\n    if(timerEl) timerEl.textContent=Math.max(0,Math.ceil((endMs-now)/1000))+\"s\";\n    if(nextTimerEl&&nextRoundMs) nextTimerEl.textContent=Math.max(0,Math.ceil((nextRoundMs-now)/1000))+\"s\";\n  };\n  tick();\n  _timerInterval=setInterval(tick,1000);\n}\ninitCountdown();\n\nvar DrawGame={\n  currentColor: \"#000000\",\n  currentTool: \"pen\",\n  parseColor: function(hex){\n    var h=(hex||\"#000000\").replace(\"#\",\"\");\n    if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];\n    return { r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16) };\n  },\n  floodFill: function(ctx, x, y, fillColor, width, height){\n    x=Math.floor(x); y=Math.floor(y);\n    if(x<0||y<0||x>=width||y>=height) return;\n    var imageData=ctx.getImageData(0,0,width,height);\n    var data=imageData.data;\n    var start=(y*width+x)*4;\n    var tr=data[start], tg=data[start+1], tb=data[start+2], ta=data[start+3];\n    if(ta===0) return;\n    var fc=this.parseColor(fillColor);\n    if(tr===fc.r&&tg===fc.g&&tb===fc.b) return;\n    var tol=36;\n    var matches=function(i){\n      return Math.abs(data[i]-tr)<=tol&&Math.abs(data[i+1]-tg)<=tol&&Math.abs(data[i+2]-tb)<=tol&&data[i+3]===255;\n    };\n    var stack=[[x,y]];\n    var seen=new Uint8Array(width*height);\n    while(stack.length){\n      var p=stack.pop(), px=p[0], py=p[1];\n      if(px<0||py<0||px>=width||py>=height) continue;\n      var pi=py*width+px;\n      if(seen[pi]) continue;\n      var i=pi*4;\n      if(!matches(i)) continue;\n      seen[pi]=1;\n      data[i]=fc.r; data[i+1]=fc.g; data[i+2]=fc.b; data[i+3]=255;\n      stack.push([px+1,py],[px-1,py],[px,py+1],[px,py-1]);\n    }\n    ctx.putImageData(imageData,0,0);\n  },\n  circlePoints: function(cx, cy, r, segments){\n    var pts=[], n=segments||48;\n    for(var i=0;i<=n;i++){\n      var a=(i/n)*Math.PI*2;\n      pts.push({ x:cx+r*Math.cos(a), y:cy+r*Math.sin(a) });\n    }\n    return pts;\n  },\n  pendingCanvasSaves: 0,\n  setStrokesLocal: function(container, strokes){\n    container.setAttribute(\"data-strokes\", JSON.stringify(strokes));\n  },\n  postCanvas: function(container, postUrl, strokes){\n    var self=this;\n    this.setStrokesLocal(container, strokes);\n    this.pendingCanvasSaves++;\n    fetch(postUrl,{ method:\"POST\", headers:{\"Content-Type\":\"application/json\"}, body:JSON.stringify(strokes) })\n      .finally(function(){ self.pendingCanvasSaves=Math.max(0, self.pendingCanvasSaves-1); });\n  },\n  applyCanvasSSE: function(html){\n    var doc=new DOMParser().parseFromString(html,\"text/html\");\n    var incoming=doc.querySelector(\"#draw-canvas-container\");\n    var container=document.getElementById(\"draw-canvas-container\");\n    var canvas=document.getElementById(\"draw-canvas\");\n    if(!incoming||!container||!canvas){\n      var section=document.getElementById(\"canvas\");\n      if(!section) return;\n      var card=doc.querySelector(\".card\");\n      section.innerHTML=card?card.outerHTML:html;\n      DrawGame.initCanvas();\n      return;\n    }\n    var newJson=incoming.getAttribute(\"data-strokes\")||\"[]\";\n    var localJson=container.getAttribute(\"data-strokes\")||\"[]\";\n    var newStrokes=[], localStrokes=[];\n    try{ newStrokes=JSON.parse(newJson); }catch(e){}\n    try{ localStrokes=JSON.parse(localJson); }catch(e){}\n    if(DrawGame.pendingCanvasSaves>0&&newStrokes.length<localStrokes.length) return;\n    var newExplainer=incoming.getAttribute(\"data-is-explainer\");\n    if(newExplainer!==null) container.setAttribute(\"data-is-explainer\", newExplainer);\n    container.setAttribute(\"data-strokes\", newJson);\n    DrawGame.redraw(canvas, newStrokes);\n    DrawGame.initCanvas();\n  },\n  applyDrawToolsSSE: function(html){\n    var el=document.getElementById(\"draw-tools\");\n    if(el) el.innerHTML=html;\n    DrawGame.initCanvas();\n  },\n  redraw: function(canvas, strokes){\n    if(!canvas) return;\n    var ctx=canvas.getContext(\"2d\");\n    if(!ctx) return;\n    ctx.fillStyle=\"#fff\";\n    ctx.fillRect(0,0,canvas.width,canvas.height);\n    ctx.lineWidth=3;\n    ctx.lineCap=\"round\";\n    ctx.lineJoin=\"round\";\n    for(var s=0;s<strokes.length;s++){\n      var stroke=strokes[s];\n      var kind=stroke.type||stroke.Type||\"stroke\";\n      var pts=stroke.points||stroke.Points||[];\n      if(kind===\"fill\"){\n        if(pts.length<1) continue;\n        var fx=pts[0].x||pts[0].X, fy=pts[0].y||pts[0].Y;\n        this.floodFill(ctx, fx, fy, stroke.color||stroke.Color||\"#000000\", canvas.width, canvas.height);\n        continue;\n      }\n      if(pts.length<2) continue;\n      ctx.strokeStyle=stroke.color||stroke.Color||\"#000000\";\n      ctx.beginPath();\n      var x0=pts[0].x||pts[0].X, y0=pts[0].y||pts[0].Y;\n      ctx.moveTo(x0, y0);\n      for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x||pts[i].X, pts[i].y||pts[i].Y);\n      var xL=pts[pts.length-1].x||pts[pts.length-1].X, yL=pts[pts.length-1].y||pts[pts.length-1].Y;\n      var gap=Math.hypot(x0-xL, y0-yL);\n      if(pts.length===48||pts.length===49||(pts.length>=12&&gap>0.01&&gap<25)) ctx.closePath();\n      ctx.stroke();\n    }\n  },\n  attachDrawing: function(canvas, postUrl, container){\n    if(!canvas||!postUrl||!container) return;\n    canvas.classList.remove(\"readonly\");\n    var ctx=canvas.getContext(\"2d\");\n    if(!ctx) return;\n    var currentStroke=[];\n    var lineStart=null;\n    function getXY(e){\n      var r=canvas.getBoundingClientRect();\n      var scaleX=canvas.width/r.width, scaleY=canvas.height/r.height;\n      return { x:(e.clientX-r.left)*scaleX, y:(e.clientY-r.top)*scaleY };\n    }\n    function drawAll(){\n      var json=container.getAttribute(\"data-strokes\")||\"[]\";\n      var strokes=[];\n      try{ strokes=JSON.parse(json); }catch(e){}\n      DrawGame.redraw(canvas, strokes);\n      if(currentStroke.length>=2){\n        ctx.strokeStyle=DrawGame.currentColor||\"#000000\";\n        ctx.lineWidth=3;\n        ctx.lineCap=\"round\";\n        ctx.lineJoin=\"round\";\n        if(DrawGame.currentTool===\"circle\"&&lineStart){\n          var edge=currentStroke[currentStroke.length-1];\n          var r=Math.hypot(edge.x-lineStart.x, edge.y-lineStart.y);\n          if(r>=0.5){\n            ctx.beginPath();\n            ctx.arc(lineStart.x, lineStart.y, r, 0, Math.PI*2);\n            ctx.stroke();\n          }\n        } else {\n          ctx.beginPath();\n          ctx.moveTo(currentStroke[0].x, currentStroke[0].y);\n          for(var i=1;i<currentStroke.length;i++) ctx.lineTo(currentStroke[i].x, currentStroke[i].y);\n          ctx.stroke();\n        }\n      }\n    }\n    function sendStrokes(){\n      if(currentStroke.length<2) return;\n      var json=container.getAttribute(\"data-strokes\")||\"[]\";\n      var strokes=[];\n      try{ strokes=JSON.parse(json); }catch(e){}\n      strokes.push({ points: currentStroke.slice(), color: DrawGame.currentColor||\"#000000\" });\n      DrawGame.postCanvas(container, postUrl, strokes);\n    }\n    function finishStroke(e){\n      if(currentStroke.length===0) return;\n      if(DrawGame.currentTool===\"line\"&&lineStart){\n        currentStroke=[lineStart, getXY(e)];\n        lineStart=null;\n      } else if(DrawGame.currentTool===\"circle\"&&lineStart){\n        var edge=getXY(e);\n        var r=Math.hypot(edge.x-lineStart.x, edge.y-lineStart.y);\n        currentStroke=r>=2?DrawGame.circlePoints(lineStart.x, lineStart.y, r, 48):[];\n        lineStart=null;\n      }\n      sendStrokes();\n      currentStroke=[];\n    }\n    canvas.onmousedown=function(e){\n      e.preventDefault();\n      var pt=getXY(e);\n      if(DrawGame.currentTool===\"fill\"){\n        var json=container.getAttribute(\"data-strokes\")||\"[]\";\n        var strokes=[];\n        try{ strokes=JSON.parse(json); }catch(err){}\n        DrawGame.redraw(canvas, strokes);\n        DrawGame.floodFill(ctx, pt.x, pt.y, DrawGame.currentColor||\"#000000\", canvas.width, canvas.height);\n        strokes.push({ type:\"fill\", points:[pt], color:DrawGame.currentColor||\"#000000\" });\n        DrawGame.postCanvas(container, postUrl, strokes);\n        return;\n      }\n      if(DrawGame.currentTool===\"line\"||DrawGame.currentTool===\"circle\"){\n        lineStart=pt;\n        currentStroke=[pt, pt];\n      } else {\n        currentStroke=[pt];\n      }\n      drawAll();\n    };\n    canvas.onmousemove=function(e){\n      if(DrawGame.currentTool===\"fill\") return;\n      if(currentStroke.length===0) return;\n      var pt=getXY(e);\n      if((DrawGame.currentTool===\"line\"||DrawGame.currentTool===\"circle\")&&lineStart){\n        currentStroke=[lineStart, pt];\n      } else {\n        currentStroke.push(pt);\n      }\n      drawAll();\n    };\n    canvas.onmouseup=finishStroke;\n    canvas.onmouseleave=finishStroke;\n  },\n  undo: function(){\n    var container=document.getElementById(\"draw-canvas-container\");\n    if(!container) return;\n    var postUrl=container.getAttribute(\"data-canvas-post\");\n    if(!postUrl) return;\n    var json=container.getAttribute(\"data-strokes\")||\"[]\";\n    var strokes=[];\n    try{ strokes=JSON.parse(json); }catch(e){}\n    if(strokes.length===0) return;\n    strokes.pop();\n    this.postCanvas(container, postUrl, strokes);\n  },\n  clear: function(){\n    var container=document.getElementById(\"draw-canvas-container\");\n    if(!container) return;\n    var postUrl=container.getAttribute(\"data-canvas-post\");\n    if(!postUrl) return;\n    this.postCanvas(container, postUrl, []);\n  },\n  initCanvas: function(){\n    var container=document.getElementById(\"draw-canvas-container\");\n    if(!container) return;\n    var canvas=document.getElementById(\"draw-canvas\");\n    if(!canvas) return;\n    var strokesJson=container.getAttribute(\"data-strokes\")||\"[]\";\n    var strokes=[];\n    try{ strokes=JSON.parse(strokesJson); }catch(e){}\n    this.redraw(canvas, strokes);\n    var isExplainer=container.getAttribute(\"data-is-explainer\")===\"true\";\n    var postUrl=container.getAttribute(\"data-canvas-post\")||\"\";\n    canvas.onmousedown=null;\n    canvas.onmousemove=null;\n    canvas.onmouseup=null;\n    canvas.onmouseleave=null;\n    canvas.classList.remove(\"readonly\");\n    var canvasSection=document.getElementById(\"canvas\");\n    if(canvasSection) canvasSection.querySelectorAll(\".draw-mode-btn\").forEach(function(btn){\n      btn.classList.remove(\"is-selected\");\n      if(btn.dataset.drawMode===DrawGame.currentTool) btn.classList.add(\"is-selected\");\n      btn.onclick=function(){\n        DrawGame.currentTool=this.dataset.drawMode||\"pen\";\n        canvasSection.querySelectorAll(\".draw-mode-btn\").forEach(function(b){ b.classList.remove(\"is-selected\"); });\n        this.classList.add(\"is-selected\");\n        var c=document.getElementById(\"draw-canvas\");\n        if(c) c.style.cursor=DrawGame.currentTool===\"fill\"?\"cell\":\"crosshair\";\n      };\n    });\n    if(canvasSection) canvasSection.querySelectorAll(\".draw-color-btn\").forEach(function(btn){\n      btn.classList.remove(\"is-selected\");\n      if(btn.dataset.drawColor===DrawGame.currentColor) btn.classList.add(\"is-selected\");\n      btn.onclick=function(){\n        DrawGame.currentColor=this.dataset.drawColor||\"#000000\";\n        canvasSection.querySelectorAll(\".draw-color-btn\").forEach(function(b){ b.classList.remove(\"is-selected\"); });\n        this.classList.add(\"is-selected\");\n      };\n    });\n    if(isExplainer&&postUrl){\n      canvas.style.cursor=DrawGame.currentTool===\"fill\"?\"cell\":\"crosshair\";\n      this.attachDrawing(canvas, postUrl, container);\n    } else canvas.classList.add(\"readonly\");\n  }\n};\nwindow.DrawGame=DrawGame;\n\nif(gid){\n  var src=new EventSource(\"/game/\"+gid+\"/stream\");\n  src.addEventListener(\"lobby\", function(e){ var el=document.getElementById(\"lobby-actions\"); if(el) el.innerHTML=e.data; });\n  src.addEventListener(\"round\", function(e){\n    cleanupCountdown();\n    var el=document.getElementById(\"round\");\n    if(el) el.innerHTML=e.data;\n    initCountdown();\n  });\n  src.addEventListener(\"invite\", function(e){ var el=document.getElementById(\"invite-region\"); if(el) el.innerHTML=e.data; });\n  src.addEventListener(\"drawtools\", function(e){ DrawGame.applyDrawToolsSSE(e.data); });\n  src.addEventListener(\"canvas\", function(e){ DrawGame.applyCanvasSSE(e.data); });\n  src.addEventListener(\"wordhint\", function(e){ var el=document.getElementById(\"wordhint\"); if(el) el.innerHTML=e.data; });\n  src.addEventListener(\"players\", function(e){ var el=document.getElementById(\"players\"); if(el) el.innerHTML=e.data; });\n  src.addEventListener(\"scores\", function(e){ var el=document.getElementById(\"scores\"); if(el) el.innerHTML=e.data; });\n}\nsetTimeout(function(){ DrawGame.initCanvas(); }, 0);\n})();\n\t\t\t\t\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></section></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></section></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

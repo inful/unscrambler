@@ -74,39 +74,57 @@ templ RoundFragment(snap viewmodel.SnapData) {
 	}
 }
 
+// CanvasSurfaceFragment is the drawable area only (used for frequent canvas SSE updates).
+templ CanvasSurfaceFragment(snap viewmodel.SnapData, gameID string) {
+	<div
+		id="draw-canvas-container"
+		class="draw-canvas-container"
+		data-strokes={ snap.StrokesJSON }
+		data-is-explainer={ strconv.FormatBool(snap.IsExplainer) }
+		data-game-id={ gameID }
+		data-canvas-post={ templ.URL("/game/" + gameID + "/canvas") }
+	>
+		<canvas id="draw-canvas" width="600" height="400"></canvas>
+	</div>
+}
+
+// DrawToolsFragment is the drawer toolbar (updated on round/start, not on every stroke).
+templ DrawToolsFragment(snap viewmodel.SnapData) {
+	if snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
+		<div class="draw-toolbar mt-2 mb-2">
+			<div class="draw-tool-mode" role="group" aria-label="Drawing tool">
+				<button type="button" class="button is-small draw-mode-btn is-selected" data-draw-mode="pen" title="Freehand">Pen</button>
+				<button type="button" class="button is-small draw-mode-btn" data-draw-mode="line" title="Straight line">Line</button>
+				<button type="button" class="button is-small draw-mode-btn" data-draw-mode="circle" title="Circle">Circle</button>
+				<button type="button" class="button is-small draw-mode-btn" data-draw-mode="fill" title="Fill enclosed area">Fill</button>
+			</div>
+			<div class="draw-color-palette" role="group" aria-label="Drawing color">
+				<button type="button" class="draw-color-btn is-selected" data-draw-color="#000000" style="background:#000000;" title="Black"></button>
+				<button type="button" class="draw-color-btn" data-draw-color="#dc2626" style="background:#dc2626;" title="Red"></button>
+				<button type="button" class="draw-color-btn" data-draw-color="#2563eb" style="background:#2563eb;" title="Blue"></button>
+				<button type="button" class="draw-color-btn" data-draw-color="#16a34a" style="background:#16a34a;" title="Green"></button>
+				<button type="button" class="draw-color-btn" data-draw-color="#ea580c" style="background:#ea580c;" title="Orange"></button>
+				<button type="button" class="draw-color-btn" data-draw-color="#9333ea" style="background:#9333ea;" title="Purple"></button>
+				<button type="button" class="draw-color-btn" data-draw-color="#eab308" style="background:#eab308;" title="Yellow"></button>
+			</div>
+			<div class="draw-actions">
+				<button type="button" class="button is-small is-light draw-action-btn" onclick="if(typeof DrawGame!=='undefined')DrawGame.undo();" title="Undo last stroke">Undo</button>
+				<button type="button" class="button is-small is-light draw-action-btn" onclick="if(typeof DrawGame!=='undefined')DrawGame.clear();" title="Clear canvas">Clear</button>
+			</div>
+		</div>
+		<p class="help mt-2" style="color:#9ca3af;">Draw on the canvas to hint the word. Others will see your drawing in real time.</p>
+	}
+}
+
 // CanvasFragment renders the #canvas section with drawing surface and stroke data.
 templ CanvasFragment(snap viewmodel.SnapData, gameID string) {
 	<div class="card">
 		<div class="card-content">
 			<h2 class="title is-6 mb-3">Canvas</h2>
-			<div
-				id="draw-canvas-container"
-				class="draw-canvas-container"
-				data-strokes={ snap.StrokesJSON }
-				data-is-explainer={ strconv.FormatBool(snap.IsExplainer) }
-				data-game-id={ gameID }
-				data-canvas-post={ templ.URL("/game/" + gameID + "/canvas") }
-			>
-				<canvas id="draw-canvas" width="600" height="400"></canvas>
+			@CanvasSurfaceFragment(snap, gameID)
+			<div id="draw-tools">
+				@DrawToolsFragment(snap)
 			</div>
-			if snap.IsExplainer && snap.Status == "in_progress" && snap.RoundWinnerName == "" {
-				<div class="draw-toolbar mt-2 mb-2">
-					<div class="draw-color-palette" role="group" aria-label="Drawing color">
-						<button type="button" class="draw-color-btn is-selected" data-draw-color="#000000" style="background:#000000;" title="Black"></button>
-						<button type="button" class="draw-color-btn" data-draw-color="#dc2626" style="background:#dc2626;" title="Red"></button>
-						<button type="button" class="draw-color-btn" data-draw-color="#2563eb" style="background:#2563eb;" title="Blue"></button>
-						<button type="button" class="draw-color-btn" data-draw-color="#16a34a" style="background:#16a34a;" title="Green"></button>
-						<button type="button" class="draw-color-btn" data-draw-color="#ea580c" style="background:#ea580c;" title="Orange"></button>
-						<button type="button" class="draw-color-btn" data-draw-color="#9333ea" style="background:#9333ea;" title="Purple"></button>
-						<button type="button" class="draw-color-btn" data-draw-color="#eab308" style="background:#eab308;" title="Yellow"></button>
-					</div>
-					<div class="draw-actions">
-						<button type="button" class="button is-small is-light draw-action-btn" onclick="if(typeof DrawGame!=='undefined')DrawGame.undo();" title="Undo last stroke">Undo</button>
-						<button type="button" class="button is-small is-light draw-action-btn" onclick="if(typeof DrawGame!=='undefined')DrawGame.clear();" title="Clear canvas">Clear</button>
-					</div>
-				</div>
-				<p class="help mt-2" style="color:#9ca3af;">Draw on the canvas to hint the word. Others will see your drawing in real time.</p>
-			}
 			if snap.Status == "lobby" {
 				<p class="has-text-grey-light py-4" style="color:#6b7280;">The canvas will appear here once the game starts.</p>
 			}

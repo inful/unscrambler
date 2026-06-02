@@ -1,0 +1,25 @@
+package shared
+
+// JoinForm renders the "Join the game" card with username input and submit.
+// joinPath is the form action URL (e.g. "/game/"+gameID+"/join") as SafeURL.
+templ JoinForm(gameID string, inviteURL string, joinPath templ.SafeURL) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-5">Join the game</h2>
+			<form method="POST" action={ joinPath }>
+				<div class="field">
+					<label class="label" for="username">Your name</label>
+					<div class="control">
+						<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required autofocus/>
+					</div>
+				</div>
+				<div class="field">
+					<div class="control">
+						<button type="submit" class="button is-primary">Join game</button>
+					</div>
+				</div>
+			</form>
+			<p class="help mt-3">Invite a friend: { inviteURL }</p>
+		</div>
+	</div>
+}

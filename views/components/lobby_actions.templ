@@ -1,0 +1,20 @@
+package components
+
+import "strconv"
+
+// ScrambleLobbyActions renders the Start game form and optional hint for the scramble game.
+// The button is disabled until playerCount >= minPlayers.
+templ ScrambleLobbyActions(showStart bool, gameID string, playerCount int, minPlayers int) {
+	if showStart {
+		<form class="mt-4" method="post" action={ templ.URL("/game/" + gameID + "/start") } onsubmit="var btn=this.querySelector('button[type=submit]');if(btn&&!btn.disabled){btn.disabled=true;btn.textContent='Starting…';}">
+			if playerCount < minPlayers {
+				<button class="button is-link is-fullwidth" type="submit" disabled title={ "Need at least " + strconv.Itoa(minPlayers) + " players" }>Start game</button>
+			} else {
+				<button class="button is-link is-fullwidth" type="submit">Start game</button>
+			}
+		</form>
+		if playerCount < minPlayers {
+			<p class="help mt-2">Need at least { strconv.Itoa(minPlayers) } players to start. Share the invite link above.</p>
+		}
+	}
+}

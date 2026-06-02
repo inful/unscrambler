@@ -4,9 +4,10 @@ import (
 	"strconv"
 
 	"dagame/internal/draw/viewmodel"
+	"dagame/views/shared"
 )
 
-templ GamePage(data viewmodel.GamePageData) {
+templ GamePage(data viewmodel.GamePageData, scoresCard shared.ScoresCardData, playersCard shared.PlayersCardData) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -26,48 +27,13 @@ templ GamePage(data viewmodel.GamePageData) {
 					if !data.HasPlayer {
 						<div class="columns is-centered">
 							<div class="column is-half">
-								<div class="card">
-									<div class="card-content">
-										<h2 class="title is-5">Join the game</h2>
-										<form method="POST" action={ templ.URL("/game/" + data.GameID + "/join") }>
-											<div class="field">
-												<label class="label" for="username">Your name</label>
-												<div class="control">
-													<input class="input" type="text" id="username" name="username" placeholder="Pick a name" maxlength="20" required autofocus/>
-												</div>
-											</div>
-											<div class="field">
-												<div class="control">
-													<button type="submit" class="button is-primary">Join game</button>
-												</div>
-											</div>
-										</form>
-										<p class="help mt-3">Invite a friend: { data.InviteURL }</p>
-									</div>
-								</div>
+								@shared.JoinForm(data.GameID, data.InviteURL, templ.URL("/game/"+data.GameID+"/join"))
 							</div>
 						</div>
 					} else {
-						if data.Snap.Status == "lobby" || data.Snap.Status == "finished" {
-							<div id="invite-bar" class="notification is-light invite-url mb-4" style="background:#374151;">
-								<div class="field has-addons">
-									<div class="control is-expanded">
-										<input id="invite-input" class="input is-small" type="text" value={ data.InviteURL } readonly style="background:#1f2937;color:#f3f4f6;"/>
-									</div>
-									<div class="control">
-										<button
-											id="copy-btn"
-											class="button is-info is-small"
-											type="button"
-											data-url={ data.InviteURL }
-											onclick="(function(b){navigator.clipboard.writeText(b.dataset.url).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1400);}).catch(function(){var i=document.getElementById('invite-input');if(i){i.focus();i.select();}});})(this)"
-										>Copy</button>
-									</div>
-								</div>
-							</div>
-						} else {
-							<div id="invite-bar"></div>
-						}
+						<div id="invite-region">
+							@shared.InviteRegion(data.Snap.Status, data.InviteURL, "notification invite-url mb-4 draw-invite-bar", "input is-small draw-invite-input", "")
+						</div>
 						<div class="columns">
 							<div class="column is-two-thirds">
 								<div id="lobby-actions" class="mb-4">
@@ -82,7 +48,7 @@ templ GamePage(data viewmodel.GamePageData) {
 							</div>
 							<div class="column">
 								<div id="scores" class="mb-4">
-									@ScoresFragment(data.Snap)
+									@shared.ScoresCard(scoresCard)
 								</div>
 								<div id="round" class="mb-4">
 									@RoundFragment(data.Snap)
@@ -103,7 +69,7 @@ templ GamePage(data viewmodel.GamePageData) {
 									</div>
 								}
 								<div id="players" class="mb-4">
-									@PlayersFragment(data.Snap, data.PlayerID)
+									@shared.PlayersCard(playersCard)
 								</div>
 							</div>
 						</div>
@@ -138,6 +104,90 @@ initCountdown();
 
 var DrawGame={
   currentColor: "#000000",
+  currentTool: "pen",
+  parseColor: function(hex){
+    var h=(hex||"#000000").replace("#","");
+    if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return { r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16) };
+  },
+  floodFill: function(ctx, x, y, fillColor, width, height){
+    x=Math.floor(x); y=Math.floor(y);
+    if(x<0||y<0||x>=width||y>=height) return;
+    var imageData=ctx.getImageData(0,0,width,height);
+    var data=imageData.data;
+    var start=(y*width+x)*4;
+    var tr=data[start], tg=data[start+1], tb=data[start+2], ta=data[start+3];
+    if(ta===0) return;
+    var fc=this.parseColor(fillColor);
+    if(tr===fc.r&&tg===fc.g&&tb===fc.b) return;
+    var tol=36;
+    var matches=function(i){
+      return Math.abs(data[i]-tr)<=tol&&Math.abs(data[i+1]-tg)<=tol&&Math.abs(data[i+2]-tb)<=tol&&data[i+3]===255;
+    };
+    var stack=[[x,y]];
+    var seen=new Uint8Array(width*height);
+    while(stack.length){
+      var p=stack.pop(), px=p[0], py=p[1];
+      if(px<0||py<0||px>=width||py>=height) continue;
+      var pi=py*width+px;
+      if(seen[pi]) continue;
+      var i=pi*4;
+      if(!matches(i)) continue;
+      seen[pi]=1;
+      data[i]=fc.r; data[i+1]=fc.g; data[i+2]=fc.b; data[i+3]=255;
+      stack.push([px+1,py],[px-1,py],[px,py+1],[px,py-1]);
+    }
+    ctx.putImageData(imageData,0,0);
+  },
+  circlePoints: function(cx, cy, r, segments){
+    var pts=[], n=segments||48;
+    for(var i=0;i<=n;i++){
+      var a=(i/n)*Math.PI*2;
+      pts.push({ x:cx+r*Math.cos(a), y:cy+r*Math.sin(a) });
+    }
+    return pts;
+  },
+  pendingCanvasSaves: 0,
+  setStrokesLocal: function(container, strokes){
+    container.setAttribute("data-strokes", JSON.stringify(strokes));
+  },
+  postCanvas: function(container, postUrl, strokes){
+    var self=this;
+    this.setStrokesLocal(container, strokes);
+    this.pendingCanvasSaves++;
+    fetch(postUrl,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(strokes) })
+      .finally(function(){ self.pendingCanvasSaves=Math.max(0, self.pendingCanvasSaves-1); });
+  },
+  applyCanvasSSE: function(html){
+    var doc=new DOMParser().parseFromString(html,"text/html");
+    var incoming=doc.querySelector("#draw-canvas-container");
+    var container=document.getElementById("draw-canvas-container");
+    var canvas=document.getElementById("draw-canvas");
+    if(!incoming||!container||!canvas){
+      var section=document.getElementById("canvas");
+      if(!section) return;
+      var card=doc.querySelector(".card");
+      section.innerHTML=card?card.outerHTML:html;
+      DrawGame.initCanvas();
+      return;
+    }
+    var newJson=incoming.getAttribute("data-strokes")||"[]";
+    var localJson=container.getAttribute("data-strokes")||"[]";
+    var newStrokes=[], localStrokes=[];
+    try{ newStrokes=JSON.parse(newJson); }catch(e){}
+    try{ localStrokes=JSON.parse(localJson); }catch(e){}
+    if(DrawGame.pendingCanvasSaves>0&&newStrokes.length<localStrokes.length) return;
+    var newExplainer=incoming.getAttribute("data-is-explainer");
+    if(newExplainer!==null) container.setAttribute("data-is-explainer", newExplainer);
+    container.setAttribute("data-strokes", newJson);
+    DrawGame.redraw(canvas, newStrokes);
+    DrawGame.initCanvas();
+  },
+  applyDrawToolsSSE: function(html){
+    var el=document.getElementById("draw-tools");
+    if(el) el.innerHTML=html;
+    DrawGame.initCanvas();
+  },
   redraw: function(canvas, strokes){
     if(!canvas) return;
     var ctx=canvas.getContext("2d");
@@ -149,12 +199,23 @@ var DrawGame={
     ctx.lineJoin="round";
     for(var s=0;s<strokes.length;s++){
       var stroke=strokes[s];
+      var kind=stroke.type||stroke.Type||"stroke";
       var pts=stroke.points||stroke.Points||[];
+      if(kind==="fill"){
+        if(pts.length<1) continue;
+        var fx=pts[0].x||pts[0].X, fy=pts[0].y||pts[0].Y;
+        this.floodFill(ctx, fx, fy, stroke.color||stroke.Color||"#000000", canvas.width, canvas.height);
+        continue;
+      }
       if(pts.length<2) continue;
       ctx.strokeStyle=stroke.color||stroke.Color||"#000000";
       ctx.beginPath();
-      ctx.moveTo(pts[0].x||pts[0].X, pts[0].y||pts[0].Y);
+      var x0=pts[0].x||pts[0].X, y0=pts[0].y||pts[0].Y;
+      ctx.moveTo(x0, y0);
       for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x||pts[i].X, pts[i].y||pts[i].Y);
+      var xL=pts[pts.length-1].x||pts[pts.length-1].X, yL=pts[pts.length-1].y||pts[pts.length-1].Y;
+      var gap=Math.hypot(x0-xL, y0-yL);
+      if(pts.length===48||pts.length===49||(pts.length>=12&&gap>0.01&&gap<25)) ctx.closePath();
       ctx.stroke();
     }
   },
@@ -164,6 +225,7 @@ var DrawGame={
     var ctx=canvas.getContext("2d");
     if(!ctx) return;
     var currentStroke=[];
+    var lineStart=null;
     function getXY(e){
       var r=canvas.getBoundingClientRect();
       var scaleX=canvas.width/r.width, scaleY=canvas.height/r.height;
@@ -179,36 +241,78 @@ var DrawGame={
         ctx.lineWidth=3;
         ctx.lineCap="round";
         ctx.lineJoin="round";
-        ctx.beginPath();
-        ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
-        for(var i=1;i<currentStroke.length;i++) ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
-        ctx.stroke();
+        if(DrawGame.currentTool==="circle"&&lineStart){
+          var edge=currentStroke[currentStroke.length-1];
+          var r=Math.hypot(edge.x-lineStart.x, edge.y-lineStart.y);
+          if(r>=0.5){
+            ctx.beginPath();
+            ctx.arc(lineStart.x, lineStart.y, r, 0, Math.PI*2);
+            ctx.stroke();
+          }
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
+          for(var i=1;i<currentStroke.length;i++) ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
+          ctx.stroke();
+        }
       }
     }
     function sendStrokes(){
+      if(currentStroke.length<2) return;
       var json=container.getAttribute("data-strokes")||"[]";
       var strokes=[];
       try{ strokes=JSON.parse(json); }catch(e){}
-      strokes.push({ points: currentStroke, color: DrawGame.currentColor||"#000000" });
-      fetch(postUrl,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(strokes) });
+      strokes.push({ points: currentStroke.slice(), color: DrawGame.currentColor||"#000000" });
+      DrawGame.postCanvas(container, postUrl, strokes);
+    }
+    function finishStroke(e){
+      if(currentStroke.length===0) return;
+      if(DrawGame.currentTool==="line"&&lineStart){
+        currentStroke=[lineStart, getXY(e)];
+        lineStart=null;
+      } else if(DrawGame.currentTool==="circle"&&lineStart){
+        var edge=getXY(e);
+        var r=Math.hypot(edge.x-lineStart.x, edge.y-lineStart.y);
+        currentStroke=r>=2?DrawGame.circlePoints(lineStart.x, lineStart.y, r, 48):[];
+        lineStart=null;
+      }
+      sendStrokes();
+      currentStroke=[];
     }
     canvas.onmousedown=function(e){
       e.preventDefault();
-      currentStroke=[getXY(e)];
+      var pt=getXY(e);
+      if(DrawGame.currentTool==="fill"){
+        var json=container.getAttribute("data-strokes")||"[]";
+        var strokes=[];
+        try{ strokes=JSON.parse(json); }catch(err){}
+        DrawGame.redraw(canvas, strokes);
+        DrawGame.floodFill(ctx, pt.x, pt.y, DrawGame.currentColor||"#000000", canvas.width, canvas.height);
+        strokes.push({ type:"fill", points:[pt], color:DrawGame.currentColor||"#000000" });
+        DrawGame.postCanvas(container, postUrl, strokes);
+        return;
+      }
+      if(DrawGame.currentTool==="line"||DrawGame.currentTool==="circle"){
+        lineStart=pt;
+        currentStroke=[pt, pt];
+      } else {
+        currentStroke=[pt];
+      }
       drawAll();
     };
     canvas.onmousemove=function(e){
-      if(currentStroke.length>0){
-        currentStroke.push(getXY(e));
-        drawAll();
+      if(DrawGame.currentTool==="fill") return;
+      if(currentStroke.length===0) return;
+      var pt=getXY(e);
+      if((DrawGame.currentTool==="line"||DrawGame.currentTool==="circle")&&lineStart){
+        currentStroke=[lineStart, pt];
+      } else {
+        currentStroke.push(pt);
       }
+      drawAll();
     };
-    canvas.onmouseup=function(e){
-      if(currentStroke.length>0){ sendStrokes(); currentStroke=[]; }
-    };
-    canvas.onmouseleave=function(e){
-      if(currentStroke.length>0){ sendStrokes(); currentStroke=[]; }
-    };
+    canvas.onmouseup=finishStroke;
+    canvas.onmouseleave=finishStroke;
   },
   undo: function(){
     var container=document.getElementById("draw-canvas-container");
@@ -220,14 +324,14 @@ var DrawGame={
     try{ strokes=JSON.parse(json); }catch(e){}
     if(strokes.length===0) return;
     strokes.pop();
-    fetch(postUrl,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(strokes) });
+    this.postCanvas(container, postUrl, strokes);
   },
   clear: function(){
     var container=document.getElementById("draw-canvas-container");
     if(!container) return;
     var postUrl=container.getAttribute("data-canvas-post");
     if(!postUrl) return;
-    fetch(postUrl,{ method:"POST", headers:{"Content-Type":"application/json"}, body:"[]" });
+    this.postCanvas(container, postUrl, []);
   },
   initCanvas: function(){
     var container=document.getElementById("draw-canvas-container");
@@ -246,6 +350,17 @@ var DrawGame={
     canvas.onmouseleave=null;
     canvas.classList.remove("readonly");
     var canvasSection=document.getElementById("canvas");
+    if(canvasSection) canvasSection.querySelectorAll(".draw-mode-btn").forEach(function(btn){
+      btn.classList.remove("is-selected");
+      if(btn.dataset.drawMode===DrawGame.currentTool) btn.classList.add("is-selected");
+      btn.onclick=function(){
+        DrawGame.currentTool=this.dataset.drawMode||"pen";
+        canvasSection.querySelectorAll(".draw-mode-btn").forEach(function(b){ b.classList.remove("is-selected"); });
+        this.classList.add("is-selected");
+        var c=document.getElementById("draw-canvas");
+        if(c) c.style.cursor=DrawGame.currentTool==="fill"?"cell":"crosshair";
+      };
+    });
     if(canvasSection) canvasSection.querySelectorAll(".draw-color-btn").forEach(function(btn){
       btn.classList.remove("is-selected");
       if(btn.dataset.drawColor===DrawGame.currentColor) btn.classList.add("is-selected");
@@ -255,8 +370,10 @@ var DrawGame={
         this.classList.add("is-selected");
       };
     });
-    if(isExplainer&&postUrl) this.attachDrawing(canvas, postUrl, container);
-    else canvas.classList.add("readonly");
+    if(isExplainer&&postUrl){
+      canvas.style.cursor=DrawGame.currentTool==="fill"?"cell":"crosshair";
+      this.attachDrawing(canvas, postUrl, container);
+    } else canvas.classList.add("readonly");
   }
 };
 window.DrawGame=DrawGame;
@@ -269,13 +386,10 @@ if(gid){
     var el=document.getElementById("round");
     if(el) el.innerHTML=e.data;
     initCountdown();
-    var bar=document.getElementById("invite-bar");
-    if(bar) bar.style.display=el&&el.querySelector("[data-round-timer]")?"none":"";
   });
-  src.addEventListener("canvas", function(e){
-    var el=document.getElementById("canvas");
-    if(el){ el.innerHTML=e.data; DrawGame.initCanvas(); }
-  });
+  src.addEventListener("invite", function(e){ var el=document.getElementById("invite-region"); if(el) el.innerHTML=e.data; });
+  src.addEventListener("drawtools", function(e){ DrawGame.applyDrawToolsSSE(e.data); });
+  src.addEventListener("canvas", function(e){ DrawGame.applyCanvasSSE(e.data); });
   src.addEventListener("wordhint", function(e){ var el=document.getElementById("wordhint"); if(el) el.innerHTML=e.data; });
   src.addEventListener("players", function(e){ var el=document.getElementById("players"); if(el) el.innerHTML=e.data; });
   src.addEventListener("scores", function(e){ var el=document.getElementById("scores"); if(el) el.innerHTML=e.data; });

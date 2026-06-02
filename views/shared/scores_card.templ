@@ -1,0 +1,51 @@
+package shared
+
+import (
+	"strconv"
+
+	"dagame/pkg/gameview"
+)
+
+// ScoresCardData holds data for the shared scores card.
+type ScoresCardData struct {
+	Scores             []gameview.ScoreEntry
+	CurrentPlayerName   string
+	WinnerName         string
+	ShowRestart        bool
+	GameID             string
+	Status             string
+}
+
+// ScoresCard renders the scores list; optional winner line and restart form (scramble).
+templ ScoresCard(data ScoresCardData) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Scores</h2>
+			if len(data.Scores) == 0 {
+				<p class="has-text-grey">No scores yet.</p>
+			} else {
+				<ol>
+					for _, s := range data.Scores {
+						<li class="mb-1">
+							if s.Name == data.CurrentPlayerName {
+								<strong>{ s.Name }</strong>: { strconv.Itoa(s.Points) }
+							} else {
+								{ s.Name }: { strconv.Itoa(s.Points) }
+							}
+						</li>
+					}
+				</ol>
+			}
+		</div>
+	</div>
+	if data.WinnerName != "" {
+		<div class="notification is-success mt-4">
+			Winner: { data.WinnerName }
+		</div>
+	}
+	if data.ShowRestart && data.Status == "finished" {
+		<form class="mt-4" method="post" action={ templ.URL("/game/" + data.GameID + "/restart") }>
+			<button class="button is-primary is-fullwidth" type="submit">Restart game</button>
+		</form>
+	}
+}

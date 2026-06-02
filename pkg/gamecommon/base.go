@@ -55,3 +55,6 @@ func IsOwner(ownerID, playerID string) bool {
 func NewGameID() string {
 	return id.NewID()
 }
+
+// MinPlayers is the minimum number of players required to start a game.
+const MinPlayers = 2

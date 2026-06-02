@@ -1,0 +1,16 @@
+package shared
+
+// InviteRegion renders the invite block: shown when status is "lobby" or "finished",
+// hidden (empty placeholder) during "in_progress". Use for initial render and SSE updates
+// so all clients see the same state. containerClass/inputClass allow theming (e.g. draw dark);
+// subtitle is optional (e.g. "Invite others with this URL:").
+templ InviteRegion(status string, inviteURL string, containerClass string, inputClass string, subtitle string) {
+	if status == "lobby" || status == "finished" {
+		if subtitle != "" {
+			<p class="subtitle">{ subtitle }</p>
+		}
+		@InviteBar(inviteURL, containerClass, inputClass)
+	} else {
+		<div id="invite-bar"></div>
+	}
+}

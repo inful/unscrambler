@@ -1,0 +1,46 @@
+package shared
+
+import (
+	"strconv"
+
+	"dagame/pkg/gameview"
+)
+
+// PlayersCardData holds data for the shared players card.
+// Bold the player matching CurrentPlayerID (explain/draw) or CurrentPlayerName (scramble).
+type PlayersCardData struct {
+	Players           []gameview.PlayerInfo
+	CurrentPlayerID   string
+	CurrentPlayerName string
+	WordLength        int
+}
+
+// PlayersCard renders the players list; optional Role tag (explain/draw) or Correct/WordLength (scramble).
+templ PlayersCard(data PlayersCardData) {
+	<div class="card">
+		<div class="card-content">
+			<h2 class="title is-6 mb-3">Players</h2>
+			if len(data.Players) == 0 {
+				<p class="has-text-grey">No players yet.</p>
+			} else {
+				<ul>
+					for _, p := range data.Players {
+						<li class="mb-2" style="display:flex;align-items:center;gap:0.5rem;">
+							if p.ID == data.CurrentPlayerID || p.Name == data.CurrentPlayerName {
+								<strong>{ p.Name }</strong>
+							} else {
+								{ p.Name }
+							}
+							if data.WordLength > 0 {
+								<span class="tag is-light ml-2">{ strconv.Itoa(p.Correct) }/{ strconv.Itoa(data.WordLength) }</span>
+							}
+							if p.Role != "" {
+								<span class="tag is-info is-light">{ p.Role }</span>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}

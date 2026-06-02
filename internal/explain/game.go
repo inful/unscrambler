@@ -12,10 +12,7 @@ import (
 	"dagame/pkg/realtime"
 )
 
-const (
-	DefaultEmojisPerRound = 8
-	MinPlayers           = 2
-)
+const DefaultEmojisPerRound = 8
 
 // Emoji set for the explainer's canvas.
 var DefaultEmojiPool = []string{
@@ -173,7 +170,7 @@ func (g *Game) Start(now time.Time) error {
 	if g.Status != gamecommon.StatusLobby {
 		return errors.New("game already started")
 	}
-	if len(g.Players) < MinPlayers {
+	if len(g.Players) < gamecommon.MinPlayers {
 		return errors.New("need at least 2 players")
 	}
 	g.Status = gamecommon.StatusInProgress

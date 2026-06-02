@@ -16,9 +16,11 @@ import (
 	"dagame/internal/game"
 	"dagame/internal/viewmodel"
 	"dagame/pkg/gamecommon"
+	"dagame/pkg/gameview"
 	"dagame/pkg/httputil"
 	"dagame/views/components"
 	"dagame/views/pages"
+	"dagame/views/shared"
 )
 
 type GameHandler struct {
@@ -69,6 +71,8 @@ func (h *GameHandler) gamePage(w http.ResponseWriter, r *http.Request, instance 
 		RoundDuration:  duration,
 		Status:         snapshot.Status,
 		ShowStart:      showStart,
+		PlayerCount:    len(instance.Players),
+		MinPlayers:     gamecommon.MinPlayers,
 		Scores:         toScoreEntries(snapshot.Scores),
 		WinnerName:     snapshot.WinnerName,
 		CurrentRound:   snapshot.CurrentRound,
@@ -78,43 +82,36 @@ func (h *GameHandler) gamePage(w http.ResponseWriter, r *http.Request, instance 
 		TargetWord:     snapshot.RoundData.Word,
 		WordLength:     snapshot.WordLength,
 	}
-	render(w, r, pages.GamePage(data))
+	scoresCard := buildScoresCardData(snapshot, playerName, gameID, isOwner)
+	playersCard := buildPlayersCardData(snapshot, playerName)
+	render(w, r, pages.GamePage(data, scoresCard, playersCard))
 }
 
 func (h *GameHandler) joinGame(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
 	gameID := instance.ID
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-	username := strings.TrimSpace(r.FormValue("username"))
-	if username == "" {
-		http.Error(w, "username required", http.StatusBadRequest)
-		return
-	}
-	if len(username) > 20 {
-		username = username[:20]
-	}
-
-	player := instance.AddPlayer(username)
-
-	httputil.SetPlayerCookie(w, playerCookieName(gameID), player.ID)
-	h.store.Publish(gameID, "players")
-	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
+	httputil.HandleJoin(w, r, httputil.JoinParams{
+		GameID:       gameID,
+		CookieName:   playerCookieName,
+		AddPlayer:    func(username string) string { return instance.AddPlayer(username).ID },
+		Publish:      h.store.Publish,
+		RedirectPath: "/game/" + gameID,
+	})
 }
 
 func (h *GameHandler) startGame(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
 	gameID := instance.ID
-	if !instance.IsOwner(playerID) {
-		http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
-		return
-	}
-	_ = instance.Start(time.Now().UTC())
-	h.store.EnsureRoundLoop(gameID, instance)
-	h.store.Publish(gameID, "round")
-	h.store.Publish(gameID, "scores")
-	h.store.Publish(gameID, "players")
-	http.Redirect(w, r, "/game/"+gameID, http.StatusSeeOther)
+	httputil.HandleStartGame(w, r, httputil.StartParams{
+		GameID:   gameID,
+		PlayerID: playerID,
+		IsOwner:  func(_, pid string) bool { return instance.IsOwner(pid) },
+		Start:    func() error { return instance.Start(time.Now().UTC()) },
+		AfterStart: func() {
+			h.store.EnsureRoundLoop(gameID, instance)
+			h.store.Publish(gameID, "round")
+			h.store.Publish(gameID, "scores")
+			h.store.Publish(gameID, "players")
+		},
+	})
 }
 
 func (h *GameHandler) restartGame(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
@@ -143,27 +140,17 @@ func (h *GameHandler) roundFragment(w http.ResponseWriter, r *http.Request, inst
 func (h *GameHandler) scoresFragment(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
 	gameID := instance.ID
 	playerName, _ := h.findPlayerName(instance, playerID)
+	isOwner := instance.IsOwner(playerID)
 	snapshot := instance.Snapshot(time.Now().UTC())
-	data := viewmodel.ScoresFragment{
-		GameID:     gameID,
-		Scores:     toScoreEntries(snapshot.Scores),
-		WinnerName: snapshot.WinnerName,
-		Status:     snapshot.Status,
-		IsOwner:    instance.IsOwner(playerID),
-		PlayerName: playerName,
-	}
-	render(w, r, components.ScoresFragment(data))
+	data := buildScoresCardData(snapshot, playerName, gameID, isOwner)
+	render(w, r, shared.ScoresCard(data))
 }
 
 func (h *GameHandler) playersFragment(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
 	playerName, _ := h.findPlayerName(instance, playerID)
 	snapshot := instance.Snapshot(time.Now().UTC())
-	data := viewmodel.PlayersFragment{
-		Players:    toPlayerProgress(snapshot.Progress, playerName),
-		WordLength: snapshot.WordLength,
-		PlayerName: playerName,
-	}
-	render(w, r, components.PlayersFragment(data))
+	data := buildPlayersCardData(snapshot, playerName)
+	render(w, r, shared.PlayersCard(data))
 }
 
 func (h *GameHandler) submitGuess(w http.ResponseWriter, r *http.Request, instance *game.Game, playerID string) {
@@ -229,24 +216,23 @@ func (h *GameHandler) stream(w http.ResponseWriter, r *http.Request, instance *g
 			if includeRound {
 				roundHTML := renderToString(r, components.RoundFragment(buildRoundFragment(gameID, snapshot)))
 				httputil.WriteSSE(w, "round", roundHTML)
+				// Update invite region for all joined clients so owner and non-owner see the same state (hide during game).
+				if playerID != "" {
+					inviteURL := httputil.BuildInviteURL(r, "/game/", gameID)
+					inviteHTML := renderToString(r, shared.InviteRegion(snapshot.Status, inviteURL, "notification is-light invite-url", "input", "Invite others with this URL:"))
+					httputil.WriteSSE(w, "invite", inviteHTML)
+				}
 			}
 			if includePlayers {
-				playersHTML := renderToString(r, components.PlayersFragment(viewmodel.PlayersFragment{
-					Players:    toPlayerProgress(snapshot.Progress, playerName),
-					WordLength: snapshot.WordLength,
-					PlayerName: playerName,
-				}))
-				httputil.WriteSSE(w, "players", playersHTML)
+				playersCard := buildPlayersCardData(snapshot, playerName)
+				showStart := playerID != "" && instance.IsOwner(playerID) && snapshot.Status == gamecommon.StatusLobby
+				playerCount := len(instance.Players)
+				sidebarHTML := renderToString(r, shared.PlayersCard(playersCard)) +
+					renderToString(r, components.ScrambleLobbyActions(showStart, gameID, playerCount, gamecommon.MinPlayers))
+				httputil.WriteSSE(w, "players", sidebarHTML)
 			}
 			if includeScores {
-				scoresHTML := renderToString(r, components.ScoresFragment(viewmodel.ScoresFragment{
-					GameID:     gameID,
-					Scores:     toScoreEntries(snapshot.Scores),
-					WinnerName: snapshot.WinnerName,
-					Status:     snapshot.Status,
-					IsOwner:    instance.IsOwner(playerID),
-					PlayerName: playerName,
-				}))
+				scoresHTML := renderToString(r, shared.ScoresCard(buildScoresCardData(snapshot, playerName, gameID, instance.IsOwner(playerID))))
 				httputil.WriteSSE(w, "scores", scoresHTML)
 			}
 		}
@@ -287,6 +273,37 @@ func toScoreEntries(scores []game.ScoreEntry) []viewmodel.ScoreEntry {
 		})
 	}
 	return out
+}
+
+func buildScoresCardData(snapshot game.Snapshot, playerName string, gameID string, isOwner bool) shared.ScoresCardData {
+	scores := make([]gameview.ScoreEntry, 0, len(snapshot.Scores))
+	for _, e := range snapshot.Scores {
+		scores = append(scores, gameview.ScoreEntry{Name: e.Name, Points: e.Points})
+	}
+	return shared.ScoresCardData{
+		Scores:             scores,
+		CurrentPlayerName:  playerName,
+		WinnerName:         snapshot.WinnerName,
+		ShowRestart:        isOwner,
+		GameID:             gameID,
+		Status:             snapshot.Status,
+	}
+}
+
+func buildPlayersCardData(snapshot game.Snapshot, playerName string) shared.PlayersCardData {
+	players := make([]gameview.PlayerInfo, 0, len(snapshot.Progress))
+	for _, p := range snapshot.Progress {
+		players = append(players, gameview.PlayerInfo{
+			Name:       p.Name,
+			Correct:    p.Correct,
+			WordLength: snapshot.WordLength,
+		})
+	}
+	return shared.PlayersCardData{
+		Players:           players,
+		CurrentPlayerName: playerName,
+		WordLength:        snapshot.WordLength,
+	}
 }
 
 func toPlayerProgress(entries []game.PlayerProgress, excludeName string) []viewmodel.PlayerProgress {
